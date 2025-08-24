@@ -1,0 +1,1 @@
+export { useMiniAppAuth } from './model/useAuth';
