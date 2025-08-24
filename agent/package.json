@@ -1,0 +1,19 @@
+{
+  "name": "agent-api",
+  "version": "1.0.0",
+  "description": "Railway Agent API Server for remote execution",
+  "main": "server.ts",
+  "scripts": {
+    "start": "tsx server.ts",
+    "dev": "tsx watch server.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/claude-code": "^1.0.71",
+    "@supabase/supabase-js": "^2.52.1",
+    "commander": "^14.0.0",
+    "tsx": "^4.7.0"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  }
+}

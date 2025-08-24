@@ -1,0 +1,71 @@
+{
+  "version": 2,
+  "currency": "USD",
+  "profit_multiplier": 1.15,
+  "last_updated": "2025-08-15",
+  "models": {
+    "gpt-5": {
+      "provider": "openai",
+      "upstream_id": "openai/gpt-5",
+      "context_window_tokens": 272000,
+      "input_per_1k_usd": 0.00125,
+      "output_per_1k_usd": 0.01,
+      "cache_read_per_1k_usd": 0.000625,
+      "cache_creation_per_1k_usd": 0.00125,
+      "estimated": false,
+      "source": "https://openai.com/pricing"
+    },
+    "gpt-5-mini": {
+      "provider": "openai",
+      "upstream_id": "openai/gpt-5-mini",
+      "context_window_tokens": 272000,
+      "input_per_1k_usd": 0.00025,
+      "output_per_1k_usd": 0.002,
+      "cache_read_per_1k_usd": 0.000125,
+      "cache_creation_per_1k_usd": 0.00025,
+      "estimated": false,
+      "source": "https://openai.com/pricing"
+    },
+    "claude-opus-4-1": {
+      "provider": "anthropic",
+      "upstream_id": "anthropic/claude-opus-4-1-20250805",
+      "context_window_tokens": 200000,
+      "input_per_1k_usd": 0.015,
+      "output_per_1k_usd": 0.075,
+      "cache_creation_per_1k_usd": 0.01875,
+      "cache_read_per_1k_usd": 0.0015,
+      "estimated": false,
+      "source": "https://www.anthropic.com/pricing"
+    },
+    "claude-sonnet-4": {
+      "provider": "anthropic",
+      "upstream_id": "anthropic/claude-sonnet-4-20250514",
+      "context_window_tokens": 200000,
+      "input_per_1k_usd": 0.003,
+      "output_per_1k_usd": 0.015,
+      "cache_creation_per_1k_usd": 0.00375,
+      "cache_read_per_1k_usd": 0.0003,
+      "estimated": false,
+      "source": "https://www.anthropic.com/pricing"
+    },
+    "gemini-2.5-pro": {
+      "provider": "google",
+      "upstream_id": "gemini/gemini-2.5-pro",
+      "context_window_tokens": 1000000,
+      "input_per_1k_usd": 0.00125,
+      "output_per_1k_usd": 0.01,
+      "input_per_1k_usd_small": 0.00125,
+      "input_per_1k_usd_large": 0.0025,
+      "output_per_1k_usd_small": 0.01,
+      "output_per_1k_usd_large": 0.015,
+      "cache_creation_per_1k_usd": 0.00125,
+      "cache_read_per_1k_usd": 0.00031,
+      "cache_read_per_1k_usd_small": 0.00031,
+      "cache_read_per_1k_usd_large": 0.000625,
+      "cache_storage_per_1k_usd_per_hour": 0.0045,
+      "context_threshold_tokens": 200000,
+      "estimated": false,
+      "source": "https://ai.google.dev/pricing"
+    }
+  }
+}
