@@ -50,7 +50,7 @@ export default async function handler(req: Request): Promise<Response> {
   // HTMLリクエストの場合は、index.htmlファイルを直接返す
   if (
     req.method === "GET" &&
-    req.headers.get("accept")?.includes("text/html")
+    (url.pathname === "/" || req.headers.get("accept")?.includes("text/html"))
   ) {
     try {
       const indexPath = resolve(process.cwd(), "index.html");
