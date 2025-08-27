@@ -27,8 +27,6 @@ function convertToUser(record: any): User {
 }
 
 export function useMiniAppAuth(): UseAuthReturn {
-  // React 19 + StrictMode対応: 初期化チェックをuseRefで管理
-  const initializationRef = useRef<boolean>(false);
 
   const [authStatus, setAuthStatus] = useState<AuthStatus>("checking");
   const [authMessage, setAuthMessage] = useState<string>("初期化中...");
@@ -103,11 +101,6 @@ export function useMiniAppAuth(): UseAuthReturn {
 
   // PocketBase authStoreの状態監視（核心機能）
   useEffect(() => {
-    // StrictMode重複実行防止
-    if (initializationRef.current) {
-      return;
-    }
-    initializationRef.current = true;
 
     console.log("[useMiniAppAuth] authStore監視を開始");
 
@@ -142,8 +135,6 @@ export function useMiniAppAuth(): UseAuthReturn {
 
     return () => {
       unsubscribe();
-      // クリーンアップ時にフラグをリセット
-      initializationRef.current = false;
     };
   }, []);
 
