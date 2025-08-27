@@ -44,7 +44,7 @@ async function executeAgentCommand(req: AgentExecuteRequest): Promise<AgentExecu
   return new Promise((resolve, reject) => {
     console.log(`[Agent] Executing: npx ${args.join(' ')}`)
     
-    const process = spawn('npx', args, {
+    const childProcess = spawn('npx', args, {
       cwd: '/app/agent',
       env: {
         ...process.env,
@@ -59,20 +59,20 @@ async function executeAgentCommand(req: AgentExecuteRequest): Promise<AgentExecu
     let stdout = ''
     let stderr = ''
 
-    process.stdout.on('data', (data) => {
+    childProcess.stdout.on('data', (data) => {
       const text = data.toString()
       stdout += text
       // リアルタイムでログ出力
       console.log(`[Agent STDOUT] ${text.trim()}`)
     })
 
-    process.stderr.on('data', (data) => {
+    childProcess.stderr.on('data', (data) => {
       const text = data.toString()
       stderr += text
       console.log(`[Agent STDERR] ${text.trim()}`)
     })
 
-    process.on('close', (exitCode) => {
+    childProcess.on('close', (exitCode) => {
       const duration = Date.now() - startTime
       console.log(`[Agent] Process finished with exit code ${exitCode} in ${duration}ms`)
       
@@ -97,7 +97,7 @@ async function executeAgentCommand(req: AgentExecuteRequest): Promise<AgentExecu
       })
     })
 
-    process.on('error', (error) => {
+    childProcess.on('error', (error) => {
       console.error(`[Agent] Process error:`, error)
       reject(error)
     })
@@ -105,7 +105,7 @@ async function executeAgentCommand(req: AgentExecuteRequest): Promise<AgentExecu
     // タイムアウト (5分)
     setTimeout(() => {
       console.warn(`[Agent] Process timeout, killing...`)
-      process.kill('SIGKILL')
+      childProcess.kill('SIGKILL')
       reject(new Error('Agent execution timeout (5 minutes)'))
     }, 300000)
   })
