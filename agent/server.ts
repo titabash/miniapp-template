@@ -26,7 +26,7 @@ async function executeAgentCommand(req: AgentExecuteRequest): Promise<AgentExecu
   // コマンド構築 - 元のコマンド形式を再現
   const args = [
     'tsx',
-    '/app/agent/index.ts',
+    '/app/agent/src/index.ts',
     req.userPrompt,
     req.aiPrompt,
     req.userId,
@@ -137,7 +137,7 @@ const server = http.createServer(async (req, res) => {
     res.end(JSON.stringify({
       status: 'ok',
       timestamp: new Date().toISOString(),
-      agentPath: '/app/agent/index.ts',
+      agentPath: '/app/agent/src/index.ts',
       pid: process.pid,
     }))
     return
