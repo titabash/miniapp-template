@@ -1,6 +1,5 @@
 import { createRoot } from "react-dom/client";
 import "./index.css";
-import { createFromReadableStream } from "@vitejs/plugin-rsc/rsc";
 
 declare global {
   interface Window {
@@ -63,27 +62,48 @@ function setupErrorHandling() {
 
 async function initializeApp() {
   try {
-    const rscResponse = await fetch(window.location.href + ".rsc");
+    // 開発モードではRSCストリームの代わりに直接Appコンポーネントを使用
+    const isDev = import.meta.env.DEV;
+    
+    if (isDev) {
+      // 開発モードでは通常のReact renderingを使用
+      const { default: App } = await import("./App.tsx");
+      const { StrictMode } = await import("react");
+      const React = await import("react");
+      
+      const container = document.getElementById("root");
+      if (!container) {
+        throw new Error("Root container element not found");
+      }
 
-    if (!rscResponse.ok) {
-      throw new Error(
-        `Failed to fetch RSC stream: ${rscResponse.status} ${rscResponse.statusText}`
-      );
+      const reactRoot = createRoot(container);
+      reactRoot.render(React.createElement(StrictMode, null, React.createElement(App)));
+    } else {
+      // 本番モードではRSCストリームを使用
+      const { createFromReadableStream } = await import("@vitejs/plugin-rsc/rsc");
+      
+      const rscResponse = await fetch(window.location.href + ".rsc");
+
+      if (!rscResponse.ok) {
+        throw new Error(
+          `Failed to fetch RSC stream: ${rscResponse.status} ${rscResponse.statusText}`
+        );
+      }
+
+      if (!rscResponse.body) {
+        throw new Error("No response body received from RSC stream");
+      }
+
+      const root = await createFromReadableStream(rscResponse.body);
+      const container = document.getElementById("root");
+
+      if (!container) {
+        throw new Error("Root container element not found");
+      }
+
+      const reactRoot = createRoot(container);
+      reactRoot.render(root as any);
     }
-
-    if (!rscResponse.body) {
-      throw new Error("No response body received from RSC stream");
-    }
-
-    const root = await createFromReadableStream(rscResponse.body);
-    const container = document.getElementById("root");
-
-    if (!container) {
-      throw new Error("Root container element not found");
-    }
-
-    const reactRoot = createRoot(container);
-    reactRoot.render(root as any);
   } catch (error) {
     console.error("Failed to initialize React app:", error);
     showErrorFallback(error);
