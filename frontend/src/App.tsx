@@ -1,3 +1,5 @@
+"use client";
+
 import { useMiniAppAuth } from "@/features/auth";
 import { AppRouter } from "@/app/AppRouter";
 import { Alert } from "@/shared/ui/alert";

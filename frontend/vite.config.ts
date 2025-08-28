@@ -33,7 +33,7 @@ export default defineConfig({
     rsc({
       entries: {
         rsc: "src/entry.rsc.tsx",
-        client: "src/main.tsx",
+        client: "src/entry.browser.tsx",
       },
     }),
   ],
