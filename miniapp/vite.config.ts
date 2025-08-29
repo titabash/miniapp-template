@@ -1,5 +1,6 @@
 import { defineConfig } from "vite";
 import rsc from "@vitejs/plugin-rsc";
+import react from "@vitejs/plugin-react";
 import path from "path";
 import tailwindcss from "@tailwindcss/vite";
 import checker from "vite-plugin-checker";
@@ -26,18 +27,56 @@ export default defineConfig({
     port: 8080,
   },
   plugins: [
+    rsc({
+      // 公式パターン: entriesオプションを使わずrollupOptions.inputで指定
+    }),
+    // React plugin for client component HMR
+    react(),
     tailwindcss(),
     checker({
       typescript: true,
     }),
-    rsc({
-      entries: {
-        rsc: "src/entry.rsc.tsx",
-        client: "src/entry.browser.tsx",
-      },
-    }),
   ],
-
+  
+  // 公式パターン: 各環境のエントリーポイントをrollupOptions.inputで指定
+  environments: {
+    // RSC環境: react-server条件でモジュールをロード
+    // RSCストリームのシリアライゼーションとサーバー関数処理を担当
+    rsc: {
+      build: {
+        rollupOptions: {
+          input: {
+            index: './src/entry.rsc.tsx',
+          },
+        },
+      },
+    },
+    
+    // SSR環境: react-server条件なしでモジュールをロード  
+    // RSCストリームのデシリアライゼーションと従来のSSRを担当
+    ssr: {
+      build: {
+        rollupOptions: {
+          input: {
+            index: './src/entry.ssr.tsx',
+          },
+        },
+      },
+    },
+    
+    // Client環境: ハイドレーションとクライアントサイドレンダリングを担当
+    // RSCストリームのデシリアライゼーション、CSR、RSCリフェッチ、サーバー関数呼び出しを担当
+    client: {
+      build: {
+        rollupOptions: {
+          input: {
+            index: './src/entry.browser.tsx',
+          },
+        },
+      },
+    },
+  },
+  
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

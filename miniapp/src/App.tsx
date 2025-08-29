@@ -6,8 +6,15 @@ import { Alert } from "@/shared/ui/alert";
 import { Card, CardHeader, CardTitle, CardContent } from "@/shared/ui/card";
 import { Button } from "@/shared/ui/button";
 
-function App() {
+interface AppProps {
+  url?: string
+}
+
+function App({ url }: AppProps = {}) {
   const { authStatus, authMessage, refreshAuth } = useMiniAppAuth();
+  
+  // URLは将来的にルーティングで使用する予定
+  console.log('Current URL:', url || 'Not provided');
 
   // エラー時のリトライハンドラー
   const handleRetry = async () => {

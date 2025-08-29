@@ -13,13 +13,16 @@ Feature Sliced Design（FSD）アーキテクチャを採用し、拡張性と�
 - **UI**: shadcn/ui + Tailwind CSS 3.4
 - **Architecture**: Feature Sliced Design (FSD)
 - **Authentication**: PostMessage + PocketBase (iframe対応)
+- **AI Integration**: Mastra (AI Agent Framework) + AI SDK + Anthropic Claude Code
+- **AI Services**: fal.ai (画像・動画生成・音声認識) + OpenAI API
 - **Server Functions**: Next.js Server Actions (外部API統合基盤)
 - **Database**: PocketBase 統合済み
+- **Validation**: Zod (型安全なスキーマバリデーション)
 
 ## プロジェクト構造
 
 ```
-project/
+miniapp-next/
 ├── app/              # Next.js App Router（ルート階層）
 │   ├── layout.tsx    # ルートレイアウト + 認証統合
 │   ├── page.tsx      # ルート（"/"）→ "/home"リダイレクト
@@ -27,38 +30,72 @@ project/
 │   │   └── page.tsx  # メインページ（"/home"）
 │   ├── globals.css   # グローバルCSS + Tailwind
 │   └── providers/    # 認証プロバイダー
+│       ├── auth-provider.tsx
+│       └── index.tsx
 ├── docs/             # 詳細ドキュメント
-│   ├── protected-files.md    # 変更不可ファイル一覧
-│   ├── DEVELOPMENT_RULES.md  # 開発ルール
-│   ├── AUTH_RULES.md         # 認証システム詳細
-│   └── その他ガイド
-├── pages/            # Pages Router無効化用
-│   └── README.md
+│   ├── protected-files.md         # 変更不可ファイル一覧
+│   ├── DEVELOPMENT_RULES.md       # 開発ルール
+│   ├── FSD_ARCHITECTURE_GUIDE.md  # Feature Sliced Design アーキテクチャガイド
+│   ├── AUTH_RULES.md              # 認証システム詳細
+│   ├── DESIGN_LAYOUT_RULES.md     # デザイン・レイアウトルール
+│   ├── REACT_RULES.md             # React実装ルール
+│   ├── ROUTING_RULES.md           # ルーティングルール
+│   ├── SERVER_FUNCTIONS_GUIDE.md  # Server Functions ガイド
+│   └── AI_AGENT_DEVELOPMENT_GUIDE.md  # AI Agent開発ガイド
+├── pages/            # Pages Router無効化用（.gitkeepのみ）
+│   └── .gitkeep
+├── components.json   # shadcn/ui設定ファイル
 └── src/              # Feature Sliced Design 構造
     ├── app/          # グローバル設定・プロバイダー
+    ├── assets/       # 静的リソース
+    │   └── react.svg
     ├── pages/        # ページコンポーネント
+    │   ├── HomePage/ # メインページ（FSD準拠構造）
+    │   └── index.ts
     ├── features/     # 機能単位（認証システム等）
+    │   └── auth/     # 認証機能
+    │       ├── model/
+    │       └── index.ts
     ├── entities/     # ドメインモデル・型定義
+    │   └── user/     # ユーザーエンティティ
     └── shared/       # 共通リソース
-        ├── lib/      # PocketBase等クライアントライブラリ
-        ├── server/   # Server Actions（外部API統合）
+        ├── lib/      # ユーティリティ・クライアントライブラリ
+        │   ├── pocketbase.ts  # PocketBase統合
+        │   ├── utils.ts       # 汎用ユーティリティ
+        │   └── variants.ts    # バリアント設定
+        └── server/   # 外部APIクライアント（共通ライブラリ）
+            ├── fal.server.ts      # fal.ai APIクライアント
+            ├── openai.server.ts   # OpenAI APIクライアント
+            └── pocketbase.server.ts  # PocketBase APIクライアント
         └── ui/       # shadcn/ui コンポーネント
+            ├── alert.tsx
+            ├── badge.tsx
+            ├── button.tsx
+            ├── card.tsx
+            ├── navigation-menu.tsx
+            └── separator.tsx
 ```
 
 ## 開発コマンド
 
 ```bash
-# 開発サーバー起動
+# 開発サーバー起動（ポート5173）
 npm run dev
 
 # 本番ビルド（メインコマンド）
 npm run build
 
-# 本番サーバー起動
+# ビルド監視モード（開発時の自動リビルド）
+npm run build:watch
+
+# 本番サーバー起動（ポート8080）
 npm run start
 
+# プレビューサーバー（ポート8080）
+npm run preview
+
 # TypeScript型チェック
-npm run type-check
+npm run tsc
 
 # ESLintチェック
 npm run lint
@@ -73,24 +110,70 @@ npm run lint
 - **永続化**: LocalStorage + Cookie の二重永続化
 - **自動トークンリフレッシュ**: セッション管理の自動化
 
-### 2. Server Actions（外部API統合基盤）
+### 2. AI統合機能（新機能）
 
+#### fal.ai統合（画像・動画・音声生成）
+**FSD準拠の実装例**：
 ```typescript
-// AI Services例
-import { generateImageAction } from "@/shared/server/actions/ai";
-import { createChatCompletionAction } from "@/shared/server/actions/openai";
+// 1. 共通ライブラリを利用したServer Action作成
+// src/features/image-generation/api/generateImage.ts
+"use server";
+import { generateImage } from "@/shared/server/fal.server";
 
-// Database Operations例
-import { getRecordsAction, createRecordAction } from "@/shared/server/actions/pocketbase";
+export async function generateImageAction(prompt: string, options?: ImageOptions) {
+  return await generateImage(prompt, options);
+}
+
+// 2. フロントエンドからの利用
+// 🚨 注意: 実際の利用には entry.rsc.tsx への登録が必要
+import { generateImageAction } from "@/features/image-generation/api/generateImage";
+const result = await generateImageAction("Beautiful sunset landscape");
 ```
 
-### 3. ルーティング
+#### OpenAI API統合
+**FSD準拠の実装例**：
+```typescript
+// 1. 共通ライブラリを利用したServer Action作成
+// src/features/chat/api/createCompletion.ts
+"use server";
+import { createOpenAIInstance, OPENAI_CONFIG } from "@/shared/server/openai.server";
+
+export async function createChatCompletionAction(messages: ChatMessage[]) {
+  const openai = await createOpenAIInstance();
+  return await openai.chat.completions.create({
+    ...OPENAI_CONFIG.CHAT_DEFAULTS,
+    messages
+  });
+}
+```
+
+#### Mastra AI Agent Framework
+- Anthropic Claude Codeとの統合
+- AI Agentの開発・実行基盤
+- `@anthropic-ai/claude-code` パッケージ使用
+
+### 3. Server Actions（FSD準拠の外部API統合）
+
+**正しい実装パターン**：
+```typescript
+// 機能固有のServer Actions（FSD準拠）
+// src/features/image-generation/api/generateImage.ts
+import { generateImage } from "@/shared/server/fal.server"; // 共通ライブラリ利用
+
+// エンティティ固有のServer Actions（FSD準拠）
+// src/entities/user/api/getUser.ts
+import { createPocketBaseInstance } from "@/shared/server/pocketbase.server"; // 共通ライブラリ利用
+
+// 詳細な実装方法は docs/SERVER_FUNCTIONS_GUIDE.md を参照
+```
+
+### 4. ルーティング
 
 - **App Router**: ファイルベースルーティング採用
 - **FSD統合**: app/ から src/pages/ のコンポーネントをインポート
 - **自動リダイレクト**: "/" → "/home" で一貫性を保持
 
-### 4. UI/UX
+### 5. UI/UX
 
 - **shadcn/ui**: 現代的なコンポーネントライブラリ
 - **Tailwind CSS**: ユーティリティファーストCSS
@@ -108,9 +191,10 @@ import { getRecordsAction, createRecordAction } from "@/shared/server/actions/po
 ## 環境変数
 
 ```bash
-# 外部API（プロジェクトに応じて設定）
-OPENAI_API_KEY=your_openai_key
-FAL_KEY=your_fal_key
+# AI Services API Keys
+OPENAI_API_KEY=your_openai_key          # OpenAI API（チャット・テキスト生成）
+FAL_KEY=your_fal_key                    # fal.ai（画像・動画・音声生成）
+ANTHROPIC_API_KEY=your_anthropic_key    # Anthropic Claude API（AI Agent機能）
 
 # PocketBase設定（認証・DB）
 NEXT_PUBLIC_POCKETBASE_URL=http://127.0.0.1:8090
@@ -138,12 +222,15 @@ NEXT_PUBLIC_POCKETBASE_URL=http://127.0.0.1:8090
 ### 含まれる機能
 - ✅ **認証システム**: iframe対応 + PocketBase統合
 - ✅ **UI基盤**: shadcn/ui + Tailwind CSS
+- ✅ **AI統合**: fal.ai（画像・動画・音声生成）+ OpenAI API
+- ✅ **AI Agent**: Mastra Framework + Anthropic Claude Code
 - ✅ **外部API統合**: Server Actions による統合基盤
-- ✅ **型安全性**: TypeScript完全対応
+- ✅ **型安全性**: TypeScript + Zod バリデーション完全対応
 - ✅ **開発体験**: ESLint + 型チェック + ビルド最適化
 
 ### 拡張可能な部分
 - ページ・コンポーネントの追加
+- AI機能の追加・カスタマイズ（fal.ai、OpenAI等）
 - 外部APIサービスの追加（Server Actions経由）
 - UIコンポーネントの追加・カスタマイズ
 - ビジネスロジックの実装
@@ -151,7 +238,18 @@ NEXT_PUBLIC_POCKETBASE_URL=http://127.0.0.1:8090
 ## 利用可能なUI コンポーネント
 
 現在インストール済み（shadcn/ui）:
-- Alert, Badge, Button, Card, NavigationMenu, Separator
+- **Alert**: アラート・通知表示コンポーネント
+- **Badge**: バッジ・ラベル表示コンポーネント  
+- **Button**: ボタンコンポーネント（各種バリアント対応）
+- **Card**: カード型レイアウトコンポーネント（Header, Content, Description, Title対応）
+- **NavigationMenu**: ナビゲーションメニューコンポーネント
+- **Separator**: セパレーター・区切り線コンポーネント
+
+shadcn/ui設定:
+- **Style**: new-york
+- **Base Color**: neutral  
+- **CSS Variables**: 有効
+- **RSC**: React Server Components対応
 
 追加時:
 ```bash

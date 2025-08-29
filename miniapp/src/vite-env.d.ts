@@ -1,11 +1,12 @@
 /// <reference types="vite/client" />
 
-// @vitejs/plugin-rsc types
-declare namespace ImportMeta {
-  interface ViteRsc {
-    loadBootstrapScriptContent(name: string): Promise<string>;
-    loadModule<T = any>(env: string, name: string): Promise<T>;
+interface ImportMetaViteRsc {
+  loadModule<T = any>(env: string, id: string): Promise<T>
+  loadBootstrapScriptContent(id: string): Promise<string>
+}
+
+declare global {
+  interface ImportMeta {
+    readonly viteRsc: ImportMetaViteRsc
   }
-  
-  const viteRsc: ViteRsc;
 }

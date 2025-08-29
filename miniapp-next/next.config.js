@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Pages Routerを無効化（App Routerのみ使用）
+  // Pages Routerを完全に無効化（App Routerのみ使用）
   pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
   
   // 実験的機能

@@ -1,131 +1,99 @@
-const serverFunctions = {};
+import {
+  renderToReadableStream,
+  createTemporaryReferenceSet,
+  decodeReply,
+  loadServerAction,
+  decodeAction,
+  decodeFormState,
+} from '@vitejs/plugin-rsc/rsc'
+import type { ReactFormState } from 'react-dom/client'
+import type { RscPayload } from './types/rsc.ts'
+import App from './App.tsx'
 
-export default async function handler(req: Request): Promise<Response> {
-  const url = new URL(req.url);
-
-  if (req.method === "GET" && url.pathname.endsWith(".rsc")) {
-    try {
-      const React = await import("react");
-      const { renderToReadableStream } = await import("@vitejs/plugin-rsc/rsc");
-      const { default: App } = await import("./App.tsx");
-      
-      const appElement = React.createElement(App);
-      const rscStream = renderToReadableStream(appElement);
-      
-      return new Response(rscStream, {
-        headers: {
-          "Content-Type": "text/x-component;charset=utf-8",
-          "Cache-Control": "no-cache",
-        },
-      });
-    } catch (error) {
-      console.error("RSC Stream Error:", error);
-      return new Response("RSC Stream Error", { status: 500 });
+// プラグインはデフォルトでrscエントリーがリクエストハンドラーのdefault exportを持つことを想定しています。
+// ただし、サーバーエントリーの実行方法は、@cloudflare/vite-pluginなどの独自サーバーハンドラーを登録することでカスタマイズできます。
+export default async function handler(request: Request): Promise<Response> {
+  // サーバー関数リクエストの処理
+  const isAction = request.method === 'POST'
+  let returnValue: unknown | undefined
+  let formState: ReactFormState | undefined
+  let temporaryReferences: unknown | undefined
+  
+  if (isAction) {
+    // x-rsc-actionヘッダーは、アクションがReactClient.setServerCallback経由で呼び出された場合に存在します
+    const actionId = request.headers.get('x-rsc-action')
+    if (actionId) {
+      const contentType = request.headers.get('content-type')
+      const body = contentType?.startsWith('multipart/form-data')
+        ? await request.formData()
+        : await request.text()
+      temporaryReferences = createTemporaryReferenceSet()
+      const args = await decodeReply(body, { temporaryReferences })
+      const action = await loadServerAction(actionId)
+      returnValue = await action.apply(null, args)
+    } else {
+      // そうでなければ、サーバー関数は<form action={...}>経由で呼び出されます
+      // ハイドレーション前（JavaScriptが無効な場合など）
+      // いわゆるプログレッシブエンハンスメント
+      const formData = await request.formData()
+      const decodedAction = await decodeAction(formData)
+      const result = await decodedAction()
+      formState = await decodeFormState(result, formData)
     }
   }
 
-  if (req.method === "POST" && url.pathname === "/actions") {
-    try {
-      const body = await req.json();
-      const { functionName, args } = body;
-
-      if (!functionName || !serverFunctions[functionName as keyof typeof serverFunctions]) {
-        return new Response(JSON.stringify({ error: "Invalid function" }), {
-          status: 400,
-          headers: { "Content-Type": "application/json" },
-        });
-      }
-
-      const serverFunction = serverFunctions[functionName as keyof typeof serverFunctions];
-      const result = await (serverFunction as any)(...(args || []));
-
-      return new Response(JSON.stringify({ result }), {
-        headers: { "Content-Type": "application/json" },
-      });
-    } catch (error) {
-      console.error("Server Function Error:", error);
-      return new Response(
-        JSON.stringify({
-          error: error instanceof Error ? error.message : "Server function execution failed",
-        }),
-        {
-          status: 500,
-          headers: { "Content-Type": "application/json" },
-        }
-      );
-    }
+  // ReactのVDOMツリーからRSCストリームへのシリアライゼーション
+  // サーバー関数リクエストの処理後にRSCストリームをレンダリングして
+  // 新しいレンダリングがサーバー関数呼び出しからの更新された状態を反映し、
+  // サーバーからのミューテートとフェッチを単一のラウンドトリップで実現する
+  const url = new URL(request.url)
+  const rscPayload: RscPayload = {
+    root: <App url={url.href} />,
+    formState,
+    returnValue,
   }
+  const rscOptions = { temporaryReferences }
+  const rscStream = renderToReadableStream<RscPayload>(rscPayload, rscOptions)
 
-  if (req.method === "GET" && (url.pathname === "/" || req.headers.get("accept")?.includes("text/html"))) {
-    return generateHtmlResponse();
-  }
+  // フレームワークの規約に基づいてHTMLレンダリングなしでRSCストリームを応答
+  // ここではリクエストヘッダーのcontent-typeを使用
+  // さらに、ペイロードを直接簡単に表示するため?__rscと?__htmlを許可
+  const isRscRequest =
+    (!request.headers.get('accept')?.includes('text/html') &&
+      !url.searchParams.has('__html')) ||
+    url.searchParams.has('__rsc')
 
-  return new Response(null, { status: 404 });
-}
-
-async function generateHtmlResponse(): Promise<Response> {
-  try {
-    const isDev = process.env.NODE_ENV !== 'production';
-    let scriptSrc = '/src/entry.browser.tsx';
-    let cssLinks = '';
-
-    if (!isDev) {
-      // @ts-ignore - viteRsc API is not typed
-      const bootstrapScriptContent = await import.meta.viteRsc?.loadBootstrapScriptContent('index');
-      
-      if (bootstrapScriptContent) {
-        scriptSrc = `data:text/javascript;base64,${btoa(bootstrapScriptContent)}`;
-      } else {
-        const assets = await loadAssetsFromManifest();
-        scriptSrc = assets.scriptSrc;
-        cssLinks = assets.cssLinks;
-      }
-    }
-
-    const htmlShell = `<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vite + React + TS</title>
-    ${cssLinks}
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="${scriptSrc}"></script>
-  </body>
-</html>`;
-
-    return new Response(htmlShell, {
+  if (isRscRequest) {
+    return new Response(rscStream, {
       headers: {
-        "Content-Type": "text/html",
-        "Cache-Control": "no-cache",
+        'content-type': 'text/x-component;charset=utf-8',
+        vary: 'accept',
       },
-    });
-  } catch (error) {
-    console.error('Failed to generate HTML:', error);
-    return new Response("Internal Server Error", { status: 500 });
+    })
   }
+
+  // HTMLレンダリングのためにSSR環境に委譲
+  // プラグインはRSC環境でSSR環境エントリーモジュールをロードするための
+  // loadSsrModuleヘルパーを提供しますが、これは@cloudflare/vite-pluginの
+  // サービスバインディングなどの独自ランタイム通信を実装することでカスタマイズできます
+  const ssrEntryModule = await (import.meta as any).viteRsc.loadModule(
+    'ssr', 'index'
+  ) as typeof import('./entry.ssr.tsx')
+  const htmlStream = await ssrEntryModule.renderHTML(rscStream, {
+    formState,
+    // JavaScriptが無効なブラウザーの簡単なシミュレーションを許可
+    debugNojs: url.searchParams.has('__nojs'),
+  })
+
+  // HTMLを応答
+  return new Response(htmlStream, {
+    headers: {
+      'Content-type': 'text/html',
+      vary: 'accept',
+    },
+  })
 }
 
-async function loadAssetsFromManifest(): Promise<{ scriptSrc: string; cssLinks: string }> {
-  const { readFile } = await import('node:fs/promises');
-  const { resolve } = await import('node:path');
-  
-  const manifestPath = resolve(process.cwd(), 'dist/rsc/__vite_rsc_assets_manifest.js');
-  const manifestContent = await readFile(manifestPath, 'utf-8');
-  
-  const manifestData = manifestContent.replace('export default ', '').replace(/;\s*$/, '');
-  const manifest = JSON.parse(manifestData);
-  
-  const jsMatch = manifest.bootstrapScriptContent.match(/import\("([^"]+)"\)/);
-  const scriptSrc = jsMatch ? jsMatch[1] : '/src/entry.browser.tsx';
-  
-  const clientDeps = Object.values(manifest.clientReferenceDeps)[0] as any;
-  const cssLinks = clientDeps?.css
-    ? clientDeps.css.map((cssFile: string) => `<link rel="stylesheet" href="${cssFile}">`).join('\n    ')
-    : '';
-  
-  return { scriptSrc, cssLinks };
+if (import.meta.hot) {
+  import.meta.hot.accept()
 }

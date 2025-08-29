@@ -32,7 +32,10 @@ export function handleFalError(error: unknown): string {
   if (error instanceof Error) {
     // fal.ai APIエラーの場合
     if ("status" in error && "message" in error) {
-      const apiError = error as any;
+      const apiError = error as {
+        status?: number;
+        message: string;
+      };
 
       switch (apiError.status) {
         case 400:
@@ -190,7 +193,7 @@ export async function generateVideo(
       ? FAL_MODELS.MINIMAX_VIDEO_IMAGE_TO_VIDEO
       : options.model || FAL_CONFIG.VIDEO_DEFAULTS.model;
 
-    const input: any = {
+    const input: Record<string, unknown> = {
       prompt,
       duration: options.duration || FAL_CONFIG.VIDEO_DEFAULTS.duration,
       aspect_ratio:
@@ -282,8 +285,8 @@ export async function uploadFile(
 export function createRealtimeConnection(
   modelId: string,
   options: {
-    onResult?: (result: any) => void;
-    onError?: (error: any) => void;
+    onResult?: (result: unknown) => void;
+    onError?: (error: unknown) => void;
     connectionKey?: string;
     throttleInterval?: number;
   } = {}

@@ -15,16 +15,31 @@ interface UseAuthReturn {
 }
 
 // PocketBaseレコードからUserオブジェクトに変換
-function convertToUser(record: any): User {
+interface PocketBaseRecord {
+  id: string;
+  email?: string;
+  emailVisibility?: boolean;
+  verified?: boolean;
+  created?: string;
+  updated?: string;
+  name?: string;
+  avatar?: string;
+  [key: string]: unknown;
+}
+
+function convertToUser(record: PocketBaseRecord | null): User {
+  if (!record) {
+    throw new Error('Record is null');
+  }
   return {
-    id: record.id as string,
-    email: record.email as string,
-    emailVisibility: (record.emailVisibility as boolean) ?? false,
-    verified: (record.verified as boolean) ?? false,
-    created: record.created as string,
-    updated: record.updated as string,
-    name: (record.name as string) ?? "",
-    avatar: (record.avatar as string) ?? "",
+    id: record.id,
+    email: record.email || "",
+    emailVisibility: record.emailVisibility ?? false,
+    verified: record.verified ?? false,
+    created: record.created || "",
+    updated: record.updated || "",
+    name: record.name || "",
+    avatar: record.avatar || "",
   };
 }
 
@@ -119,7 +134,7 @@ export function useMiniAppAuth(): UseAuthReturn {
       }
     }
 
-    const updateAuthState = (isValid: boolean, record: any) => {
+    const updateAuthState = (isValid: boolean, record: PocketBaseRecord | null) => {
       console.log("[useMiniAppAuth] authStore.onChange発火:", {
         isValid,
         hasRecord: !!record,
@@ -230,7 +245,11 @@ export function useMiniAppAuth(): UseAuthReturn {
 
   // PocketBaseエラーの適切な処理
   const handlePocketBaseError = useCallback((error: unknown): string => {
-    const pocketBaseError = error as any;
+    const pocketBaseError = error as {
+      status?: number;
+      response?: { message?: string };
+      message?: string;
+    };
 
     if (pocketBaseError?.status) {
       switch (pocketBaseError.status) {

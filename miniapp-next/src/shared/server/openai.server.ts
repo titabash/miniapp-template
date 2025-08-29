@@ -33,7 +33,10 @@ export function handleOpenAIError(error: unknown): string {
   if (error instanceof Error) {
     // OpenAI APIエラーの場合
     if ('status' in error && 'message' in error) {
-      const apiError = error as any
+      const apiError = error as {
+        status?: number;
+        message: string;
+      }
       
       switch (apiError.status) {
         case 400:

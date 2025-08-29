@@ -4,12 +4,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 5173",
     "build": "next build",
     "build:watch": "next build --watch",
-    "start": "next start",
+    "start": "next start -p 8080",
     "lint": "next lint",
-    "preview": "next start",
+    "preview": "next start -p 8080",
     "tsc": "tsc --noEmit"
   },
   "dependencies": {
