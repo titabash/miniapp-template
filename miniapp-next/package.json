@@ -6,9 +6,11 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:watch": "next build --watch",
     "start": "next start",
     "lint": "next lint",
-    "type-check": "tsc --noEmit"
+    "preview": "next start",
+    "tsc": "tsc --noEmit"
   },
   "dependencies": {
     "@ai-sdk/openai": "^2.0.18",
