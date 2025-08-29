@@ -33,7 +33,7 @@ export function createQueryOptions(
     customSystemPrompt:
       "You are an exceptionally skilled and experienced React + TypeScript + PocketBase developer with deep expertise in modern web development. You excel at building elegant, minimal apps with clean, production-ready code. You prioritize simplicity, maintainability, and fewer files while delivering robust functionality. Your solutions are always well-architected and follow best practices.",
     appendSystemPrompt: "You are using the PocketBase MCP Server.",
-    cwd: "/app/frontend",
+    cwd: "/app/miniapp",
     permissionMode: "acceptEdits",
     mcpServers: {
       pocketbase: {
