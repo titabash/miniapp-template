@@ -141,9 +141,9 @@ export function createQueryOptions(
 // Function to execute npm run build
 export async function executeBuild(): Promise<void> {
   try {
-    console.log("🔨 Starting npm run build in /app/react-app...");
+    console.log("🔨 Starting npm run build in /app/miniapp...");
     const { stdout, stderr } = await execAsync("npm run build", {
-      cwd: "/app/react-app",
+      cwd: "/app/miniapp",
       timeout: 300000, // 5 minutes timeout
     });
 

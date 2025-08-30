@@ -18,8 +18,8 @@ function generateVersionedPaths(miniAppId: string, version: number) {
   return {
     reactApp: {
       name: "React アプリ",
-      src: "/app/react-app",
-      dst: `/mnt/app/react-app/${miniAppId}/v${version}`,
+      src: "/app/miniapp",
+      dst: `/mnt/app/miniapp/${miniAppId}/v${version}`,
       storagePath: `${miniAppId}/v${version}/`,
     },
     pocketbase: {
