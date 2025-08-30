@@ -34,7 +34,7 @@ export function createQueryOptions(
       "You are an exceptionally skilled and experienced React + TypeScript + PocketBase developer with deep expertise in modern web development. You excel at building elegant, minimal apps with clean, production-ready code. You prioritize simplicity, maintainability, and fewer files while delivering robust functionality. Your solutions are always well-architected and follow best practices.",
     appendSystemPrompt: "You are using the PocketBase MCP Server.",
     cwd: "/app/miniapp",
-    permissionMode: "acceptEdits",
+    permissionMode: "bypassPermissions",
     pathToClaudeCodeExecutable: "/app/agent/node_modules/@anthropic-ai/claude-code/cli.js",
     mcpServers: {
       pocketbase: {
