@@ -34,7 +34,7 @@ export function createQueryOptions(
       "You are an exceptionally skilled and experienced React + TypeScript + PocketBase developer with deep expertise in modern web development. You excel at building elegant, minimal apps with clean, production-ready code. You prioritize simplicity, maintainability, and fewer files while delivering robust functionality. Your solutions are always well-architected and follow best practices.",
     appendSystemPrompt: "You are using the PocketBase MCP Server.",
     cwd: "/app/miniapp",
-    permissionMode: "bypassPermissions",
+    permissionMode: "acceptEdits",
     pathToClaudeCodeExecutable: "/app/agent/node_modules/@anthropic-ai/claude-code/cli.js",
     mcpServers: {
       pocketbase: {
@@ -86,6 +86,7 @@ export function createQueryOptions(
       "LS",
       "WebSearch",
       "WebFetch",
+      "Bash(rm -f ./)",
       "Bash(npx shadcn@latest add:*)",
       "Bash(npx shadcn@latest add --overwrite:*)",
       "Bash(npm install:*)",
@@ -112,6 +113,16 @@ export function createQueryOptions(
       "Edit(**/shared/server/lib/**)",
       "MultiEdit(**/shared/server/lib/**)",
       "Write(**/shared/server/lib/**)",
+      "Bash(rm -rf)",           // -rf 全域
+      "Bash(rm -r )",           // -r 単独（末尾スペースを意図的に含める例）
+      "Bash(rm -R )",           // -R 単独
+      "Bash(rm -f /)",          // 絶対パス直下
+      "Bash(rm -f //)",         // // 特殊
+      "Bash(rm -f ..)",         // 親ディレクトリ参照
+      "Bash(rm -f ../)",        // 親ディレクトリ配下
+      "Bash(rm -f ~)",          // ホーム配下
+      "Bash(rm -f * )",         // ワイルドカード（ゆるめのガード）
+      "Bash(rm -f */)",          // ディレクトリワイルドカード
       "Bash(npm run dev)",
       "Bash(npm run preview)",
       "Bash(npm run build:watch)",
