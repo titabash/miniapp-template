@@ -8,7 +8,7 @@
     "dev": "tsx watch server.ts"
   },
   "dependencies": {
-    "@anthropic-ai/claude-code": "^1.0.96",
+    "@anthropic-ai/claude-code": "^1.0.98",
     "@supabase/supabase-js": "^2.52.1",
     "commander": "^14.0.0",
     "tsx": "^4.7.0"

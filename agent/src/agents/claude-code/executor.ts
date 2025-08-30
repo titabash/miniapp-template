@@ -35,6 +35,7 @@ export function createQueryOptions(
     appendSystemPrompt: "You are using the PocketBase MCP Server.",
     cwd: "/app/miniapp",
     permissionMode: "acceptEdits",
+    // pathToClaudeCodeExecutable: "/app/agent/node_modules/@anthropic-ai/claude-code/",
     mcpServers: {
       pocketbase: {
         type: "stdio",
