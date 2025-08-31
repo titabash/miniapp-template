@@ -7,6 +7,8 @@ import checker from "vite-plugin-checker";
 
 // https://vite.dev/config/
 export default defineConfig({
+  // NEXT_PUBLIC_プレフィックスを受け入れる（Next.jsと統一）
+  envPrefix: 'NEXT_PUBLIC_',
   server: {
     host: true,
     port: 5173,
