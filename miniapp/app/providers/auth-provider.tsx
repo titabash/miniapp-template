@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { useMiniAppAuth } from "@/features/auth";
+import { useMiniAppAuth, LoginForm } from "@/features/auth";
 import { Alert } from "@/shared/ui/alert";
 import { Card, CardHeader, CardTitle, CardContent } from "@/shared/ui/card";
 import { Button } from "@/shared/ui/button";
@@ -70,27 +70,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
     );
   }
 
-  // idle状態の場合は認証待機画面を表示
+  // idle状態の場合はログイン画面を表示
   if (auth.authStatus === "idle") {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <CardTitle>認証待機中</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-center space-y-4">
-              <p className="text-sm text-gray-600">
-                認証情報を待機しています...
-              </p>
-              <div className="animate-pulse">
-                <div className="h-2 w-full bg-gray-200 rounded"></div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
+    return <LoginForm auth={auth} />;
   }
 
   // 認証成功の場合は子コンポーネントを表示

@@ -16,6 +16,7 @@
     "@ai-sdk/openai": "^2.0.18",
     "@anthropic-ai/claude-code": "^1.0.55",
     "@fal-ai/client": "^1.6.2",
+    "@radix-ui/react-label": "^2.1.7",
     "@radix-ui/react-navigation-menu": "^1.2.13",
     "@radix-ui/react-separator": "^1.1.7",
     "@radix-ui/react-slot": "^1.2.3",

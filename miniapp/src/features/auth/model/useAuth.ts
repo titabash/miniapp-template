@@ -12,6 +12,7 @@ interface UseAuthReturn {
   getCurrentUser: () => User | null;
   logout: () => void;
   refreshAuth: () => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
 }
 
 // PocketBaseレコードからUserオブジェクトに変換
@@ -217,43 +218,6 @@ export function useMiniAppAuth(): UseAuthReturn {
     validateAndRefresh();
   }, []);
 
-  // 手動リフレッシュ機能
-  const handleRefreshAuth = useCallback(async () => {
-    if (!pb.authStore.isValid) {
-      throw new Error("認証されていません");
-    }
-
-    try {
-      await pb.collection("users").authRefresh();
-      console.log("[useMiniAppAuth] 手動リフレッシュ成功");
-    } catch (error) {
-      console.error("[useMiniAppAuth] 手動リフレッシュ失敗:", error);
-      pb.authStore.clear();
-      throw error;
-    }
-  }, []);
-
-  // 初期化処理
-  useEffect(() => {
-    const controller = new AbortController();
-
-    const initialize = async () => {
-      if (!isInitialized && !controller.signal.aborted) {
-        setIsInitialized(true);
-        console.log("[useMiniAppAuth] 初期化完了");
-
-        // 初期化完了と同時に親アプリに通知
-        notifyParentReady();
-      }
-    };
-
-    initialize();
-
-    return () => {
-      controller.abort();
-    };
-  }, [isInitialized, notifyParentReady]);
-
   // PocketBaseエラーの適切な処理
   const handlePocketBaseError = useCallback((error: unknown): string => {
     const pocketBaseError = error as {
@@ -285,6 +249,86 @@ export function useMiniAppAuth(): UseAuthReturn {
 
     return pocketBaseError?.message || "認証エラーが発生しました";
   }, []);
+
+  // 手動リフレッシュ機能
+  const handleRefreshAuth = useCallback(async () => {
+    if (!pb.authStore.isValid) {
+      throw new Error("認証されていません");
+    }
+
+    try {
+      await pb.collection("users").authRefresh();
+      console.log("[useMiniAppAuth] 手動リフレッシュ成功");
+    } catch (error) {
+      console.error("[useMiniAppAuth] 手動リフレッシュ失敗:", error);
+      pb.authStore.clear();
+      throw error;
+    }
+  }, []);
+
+  // 手動ログイン機能（自動サインアップなし）
+  const handleManualLogin = useCallback(async (email: string, password: string) => {
+    console.log("[useMiniAppAuth] 手動ログイン開始:", { email });
+
+    // 認証中状態を設定
+    setAuthStatus("authenticating");
+    setAuthMessage("ログイン中...");
+
+    try {
+      // PocketBaseで直接認証実行（サインインのみ）
+      const authData = await pb
+        .collection("users")
+        .authWithPassword(email, password);
+
+      console.log("[useMiniAppAuth] 手動ログイン成功:", {
+        email: authData.record.email,
+        authStoreIsValid: pb.authStore.isValid,
+        hasToken: !!pb.authStore.token,
+      });
+
+      // authStore.onChangeが自動で状態を更新するため手動setStateは不要
+
+      // 親ページに認証成功を通知
+      notifyAuthSuccess({
+        id: authData.record.id,
+        email: authData.record.email,
+      });
+    } catch (error: unknown) {
+      const errorMessage = handlePocketBaseError(error);
+      console.error("[useMiniAppAuth] 手動ログイン失敗:", error);
+
+      // エラー状態を設定（自動サインアップは行わない）
+      setAuthStatus("error");
+      setAuthMessage(`ログイン失敗: ${errorMessage}`);
+
+      // 親ページに認証失敗を通知
+      notifyAuthFailure(errorMessage);
+
+      // エラーを再スロー（呼び出し元でキャッチできるように）
+      throw new Error(errorMessage);
+    }
+  }, [notifyAuthSuccess, notifyAuthFailure, handlePocketBaseError]);
+
+  // 初期化処理
+  useEffect(() => {
+    const controller = new AbortController();
+
+    const initialize = async () => {
+      if (!isInitialized && !controller.signal.aborted) {
+        setIsInitialized(true);
+        console.log("[useMiniAppAuth] 初期化完了");
+
+        // 初期化完了と同時に親アプリに通知
+        notifyParentReady();
+      }
+    };
+
+    initialize();
+
+    return () => {
+      controller.abort();
+    };
+  }, [isInitialized, notifyParentReady]);
 
   // 認証処理ハンドラー（PocketBaseクライアント使用）
   const handleAuthentication = useCallback(
@@ -543,6 +587,7 @@ export function useMiniAppAuth(): UseAuthReturn {
       getCurrentUser: getCurrentUserLocal,
       logout,
       refreshAuth: handleRefreshAuth,
+      login: handleManualLogin,
     }),
     [
       authStatus,
@@ -552,6 +597,7 @@ export function useMiniAppAuth(): UseAuthReturn {
       getCurrentUserLocal,
       logout,
       handleRefreshAuth,
+      handleManualLogin,
     ]
   );
 }
