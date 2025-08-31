@@ -8,7 +8,7 @@
 
 ### ✅ **対応済み機能**
 
-現在、以下の機能が `src/shared/server/` に実装済みで利用可能です：
+現在、以下の機能が `src/shared/server/lib/` に実装済みで利用可能です：
 
 #### 1. **OpenAI API統合** (`openai.server.ts`)
 - GPT-5シリーズモデルによるテキスト生成
@@ -42,7 +42,7 @@
 
 ### ❌ **未対応機能**
 
-以下の機能は現在 `src/shared/server/` に実装されておらず、利用できません：
+以下の機能は現在 `src/shared/server/lib/` に実装されておらず、利用できません：
 
 - **メール送信機能**
 - **PDF生成・処理**
@@ -76,7 +76,7 @@ const serverFunctions = {
 
 ```typescript
 // src/features/example/api/actions.ts
-import { createOpenAIInstance, OPENAI_CONFIG } from '@/shared/server/openai.server'
+import { createOpenAIInstance, OPENAI_CONFIG } from '@/shared/server/lib/openai.server'
 
 export interface ExampleResult {
   success: boolean
@@ -164,7 +164,7 @@ function ExampleComponent() {
 
 ```typescript
 // Server Function
-import { generateImage, FAL_CONFIG } from '@/shared/server/fal.server'
+import { generateImage, FAL_CONFIG } from '@/shared/server/lib/fal.server'
 
 export async function createImage(prompt: string): Promise<ExampleResult> {
   "use server"
@@ -205,7 +205,7 @@ const result = await window.callServerFunction<ExampleResult>(
 
 ```typescript
 // Server Function
-import { generateVideo, FAL_CONFIG } from '@/shared/server/fal.server'
+import { generateVideo, FAL_CONFIG } from '@/shared/server/lib/fal.server'
 
 export async function createVideo(prompt: string): Promise<ExampleResult> {
   "use server"
@@ -227,7 +227,7 @@ export async function createVideo(prompt: string): Promise<ExampleResult> {
 
 ```typescript
 // Server Function
-import { transcribeAudio } from '@/shared/server/fal.server'
+import { transcribeAudio } from '@/shared/server/lib/fal.server'
 
 export async function transcribeAudioFile(audioUrl: string): Promise<ExampleResult> {
   "use server"
@@ -340,7 +340,7 @@ const result = await window.callServerFunction<ExampleResult>(
 
 ```typescript
 // Server Function
-import { createPocketBaseInstance } from '@/shared/server/pocketbase.server'
+import { createPocketBaseInstance } from '@/shared/server/lib/pocketbase.server'
 
 export async function getUserData(userId: string): Promise<ExampleResult> {
   "use server"
@@ -447,7 +447,7 @@ export async function robustServerFunction(input: string): Promise<ExampleResult
 - 入力データの検証を行う
 
 ### ⚠️ **制限事項**
-- `src/shared/server/` に実装されていない機能は使用不可
+- `src/shared/server/lib/` に実装されていない機能は使用不可
 - 新しい外部サービスの統合には追加実装が必要
 - ファイルアップロードなどの機能は別途実装が必要
 
@@ -456,184 +456,38 @@ export async function robustServerFunction(input: string): Promise<ExampleResult
 - Server Functions 内でのみ機密情報にアクセス
 - フロントエンドに機密データを送信しない
 
-## FSD準拠のアーキテクチャ
-
-このプロジェクトではFeature Sliced Design（FSD）に基づいて、Server Actionsを適切な層に配置します。
-
-### 📁 正しい配置パターン
-
-#### 1. **機能別（Features層）**
-特定のビジネス機能に関連するServer Actions：
-
-```
-src/features/
-├── image-generation/       # 画像生成機能
-│   ├── api/
-│   │   ├── generateImage.ts    # 画像生成Server Action
-│   │   └── uploadImage.ts      # 画像アップロードServer Action
-│   ├── model/
-│   └── ui/
-├── chat/                   # チャット機能
-│   ├── api/
-│   │   ├── sendMessage.ts      # メッセージ送信Server Action
-│   │   └── getChatHistory.ts   # 履歴取得Server Action
-│   ├── model/
-│   └── ui/
-```
-
-#### 2. **エンティティ別（Entities層）**
-特定のドメインモデルに関連するServer Actions：
-
-```
-src/entities/
-├── user/                   # ユーザーエンティティ
-│   ├── api/
-│   │   ├── getUser.ts          # ユーザー取得Server Action
-│   │   ├── updateProfile.ts    # プロフィール更新Server Action
-│   │   └── deleteUser.ts       # ユーザー削除Server Action
-│   ├── model/
-│   └── lib/
-├── post/                   # 投稿エンティティ
-│   ├── api/
-│   │   ├── createPost.ts       # 投稿作成Server Action
-│   │   └── getPosts.ts         # 投稿一覧取得Server Action
-│   ├── model/
-│   └── lib/
-```
-
-#### 3. **共通ライブラリ（Shared層）**
-どの機能からも利用可能な純粋なAPIクライアント：
-
-```
-src/shared/
-├── server/                 # Server統合クライアント
-│   ├── fal.server.ts          # fal.ai APIクライアント
-│   ├── openai.server.ts       # OpenAI APIクライアント
-│   └── pocketbase.server.ts   # PocketBase APIクライアント
-├── lib/
-│   └── utils.ts               # 汎用ユーティリティ
-└── ui/                     # 共通UIコンポーネント
-```
-
-### ✅ 正しい実装例
-
-#### **Features層での実装**
-```typescript
-// src/features/image-generation/api/generateImage.ts
-"use server";
-import { generateImage } from "@/shared/server/fal.server";
-
-export async function generateImageAction(prompt: string, options?: ImageOptions) {
-  return await generateImage(prompt, options);
-}
-```
-
-#### **Entities層での実装**
-```typescript
-// src/entities/user/api/updateProfile.ts  
-"use server";
-import { createPocketBaseInstance } from "@/shared/server/pocketbase.server";
-
-export async function updateUserProfileAction(userId: string, data: UserData) {
-  const pb = await createPocketBaseInstance();
-  return await pb.collection('users').update(userId, data);
-}
-```
-
-### 📐 層の責務分離
-
-| 層 | 責務 | 実装内容 |
-|---|---|---|
-| **shared/server/** | 純粋なAPIクライアント | 外部サービスとの低レベル通信 |
-| **entities/*/api/** | ドメインモデル操作 | 特定エンティティのCRUD操作 |
-| **features/*/api/** | ビジネス機能実装 | 複数エンティティを横断する機能 |
-
-### ❌ 避けるべきパターン
-
-```typescript
-// ❌ shared に機能固有のServer Actionを置かない
-// src/shared/server/actions/imageGeneration.ts  // これは間違い
-
-// ✅ features に機能固有のServer Actionを配置
-// src/features/image-generation/api/generateImage.ts  // これが正しい
-```
-
 ## 拡張方法
 
-### **新機能追加の手順**
+新しい機能を追加したい場合：
 
-#### **Step 1: 共通ライブラリ作成（必要に応じて）**
+1. `src/shared/server/lib/` に新しいサーバー機能を実装
+2. `src/features/[feature]/api/actions.ts` でServer Function を作成
+3. **🚨 重要**: `src/entry.rsc.tsx` の `serverFunctions` に関数を登録
+4. フロントエンドから `window.callServerFunction()` で呼び出し
+
+### 完全な実装例
+
 ```typescript
-// src/shared/server/newservice.server.ts
-export async function createNewServiceClient() {
-  "use server";
-  // 新しい外部サービスのクライアント実装
+// 1. Server Function作成
+// src/features/example/api/actions.ts
+export async function myNewFunction(input: string): Promise<ExampleResult> {
+  "use server"
+  // 実装内容
 }
-```
 
-#### **Step 2: 機能別Server Action作成**
-```typescript
-// src/features/new-feature/api/newAction.ts
-"use server";
-import { createNewServiceClient } from "@/shared/server/newservice.server";
-
-export async function newFeatureAction(input: string): Promise<ExampleResult> {
-  const client = await createNewServiceClient();
-  // ビジネスロジック実装
-}
-```
-
-#### **Step 3: entry.rsc.tsxに登録**
-```typescript
+// 2. entry.rsc.tsxに登録
 // src/entry.rsc.tsx
-import { newFeatureAction } from './features/new-feature/api/newAction';
+import { myNewFunction } from './features/example/api/actions'
 
 const serverFunctions = {
-  newFeatureAction,  // ← 追加
+  myNewFunction,  // ← この行を追加
 };
-```
 
-#### **Step 4: フロントエンドから呼び出し**
-```typescript
+// 3. フロントエンドから呼び出し
 const result = await window.callServerFunction<ExampleResult>(
-  'newFeatureAction',
+  'myNewFunction',
   'パラメータ'
-);
+)
 ```
 
-### **完全な実装例**
-
-```typescript
-// 1. 共通ライブラリ（必要に応じて）
-// src/shared/server/translation.server.ts
-export async function createTranslationClient() {
-  "use server";
-  // 翻訳APIクライアント
-}
-
-// 2. 機能固有のServer Action
-// src/features/translation/api/translateText.ts
-"use server";
-import { createTranslationClient } from "@/shared/server/translation.server";
-
-export async function translateTextAction(text: string, targetLang: string): Promise<ExampleResult> {
-  const client = await createTranslationClient();
-  // 翻訳ロジック実装
-}
-
-// 3. entry.rsc.tsxに登録
-// src/entry.rsc.tsx
-import { translateTextAction } from './features/translation/api/translateText';
-
-const serverFunctions = {
-  translateTextAction,
-};
-
-// 4. フロントエンドから呼び出し
-const result = await window.callServerFunction<ExampleResult>(
-  'translateTextAction',
-  'Hello World'
-);
-```
-
-このFSD準拠のアーキテクチャにより、**スケーラブルで保守性の高い**Server Actions基盤を実現できます。
+この構成により、安全で拡張可能なサーバーサイド処理を実現できます。

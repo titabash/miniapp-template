@@ -1,3 +1,5 @@
+"use client";
+
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { pb } from "@/shared/lib/pocketbase";
 import type { User, AuthStatus, PostMessageData } from "@/entities/user";
@@ -13,23 +15,38 @@ interface UseAuthReturn {
 }
 
 // PocketBaseレコードからUserオブジェクトに変換
-function convertToUser(record: any): User {
+interface PocketBaseRecord {
+  id: string;
+  email?: string;
+  emailVisibility?: boolean;
+  verified?: boolean;
+  created?: string;
+  updated?: string;
+  name?: string;
+  avatar?: string;
+  [key: string]: unknown;
+}
+
+function convertToUser(record: PocketBaseRecord | null): User {
+  if (!record) {
+    throw new Error('Record is null');
+  }
   return {
-    id: record.id as string,
-    email: record.email as string,
-    emailVisibility: (record.emailVisibility as boolean) ?? false,
-    verified: (record.verified as boolean) ?? false,
-    created: record.created as string,
-    updated: record.updated as string,
-    name: (record.name as string) ?? "",
-    avatar: (record.avatar as string) ?? "",
+    id: record.id,
+    email: record.email || "",
+    emailVisibility: record.emailVisibility ?? false,
+    verified: record.verified ?? false,
+    created: record.created || "",
+    updated: record.updated || "",
+    name: record.name || "",
+    avatar: record.avatar || "",
   };
 }
 
 export function useMiniAppAuth(): UseAuthReturn {
-
-  const [authStatus, setAuthStatus] = useState<AuthStatus>("checking");
-  const [authMessage, setAuthMessage] = useState<string>("初期化中...");
+  // Next.js ハイドレーション対策: 初期状態を統一
+  const [authStatus, setAuthStatus] = useState<AuthStatus>("idle");
+  const [authMessage, setAuthMessage] = useState<string>("認証情報を待機しています...");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
@@ -101,10 +118,23 @@ export function useMiniAppAuth(): UseAuthReturn {
 
   // PocketBase authStoreの状態監視（核心機能）
   useEffect(() => {
-
     console.log("[useMiniAppAuth] authStore監視を開始");
 
-    const updateAuthState = (isValid: boolean, record: any) => {
+    // Cookie から認証情報を復元（Next.js ベストプラクティス）
+    // クライアント側でのみ実行
+    if (typeof window !== "undefined") {
+      try {
+        pb.authStore.loadFromCookie(document.cookie);
+        console.log("[useMiniAppAuth] Cookie から認証情報を復元:", {
+          isValid: pb.authStore.isValid,
+          hasToken: !!pb.authStore.token,
+        });
+      } catch (error) {
+        console.warn("[useMiniAppAuth] Cookie からの認証情報復元に失敗:", error);
+      }
+    }
+
+    const updateAuthState = (isValid: boolean, record: PocketBaseRecord | null) => {
       console.log("[useMiniAppAuth] authStore.onChange発火:", {
         isValid,
         hasRecord: !!record,
@@ -131,6 +161,22 @@ export function useMiniAppAuth(): UseAuthReturn {
     // authStore変更を監視（単一の真実の源）
     const unsubscribe = pb.authStore.onChange((_, record) => {
       updateAuthState(pb.authStore.isValid, record);
+      
+      // Cookie に認証情報を保存（Next.js ベストプラクティス）
+      // クライアント側でのみ実行
+      if (typeof window !== "undefined") {
+        try {
+          const cookieOptions = {
+            httpOnly: false, // クライアント側でアクセス可能
+            secure: location.protocol === 'https:',
+            sameSite: 'strict' as const,
+            maxAge: 7 * 24 * 60 * 60, // 7日間
+          };
+          document.cookie = pb.authStore.exportToCookie(cookieOptions);
+        } catch (error) {
+          console.warn("[useMiniAppAuth] Cookie への認証情報保存に失敗:", error);
+        }
+      }
     });
 
     return () => {
@@ -199,7 +245,11 @@ export function useMiniAppAuth(): UseAuthReturn {
 
   // PocketBaseエラーの適切な処理
   const handlePocketBaseError = useCallback((error: unknown): string => {
-    const pocketBaseError = error as any;
+    const pocketBaseError = error as {
+      status?: number;
+      response?: { message?: string };
+      message?: string;
+    };
 
     if (pocketBaseError?.status) {
       switch (pocketBaseError.status) {

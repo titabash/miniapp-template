@@ -10,51 +10,24 @@
 - **データベース**: PocketBase
 - **アーキテクチャ**: Feature Sliced Design (FSD)
 
-### フォルダ構造（FSD準拠）
+### フォルダ構造
 ```
-miniapp-next/
+miniapp/
 ├─ src/
 │  ├─ app/          # ルーティング・グローバル State
 │  ├─ shared/
-│  │  ├─ ui/        # 共通UIコンポーネント（shadcn/ui）
-│  │  ├─ lib/       # 汎用ユーティリティ（utils, pocketbase等）
-│  │  └─ server/    # 外部APIクライアント（*.server.ts）
+│  │  ├─ ui/        # 共通コンポーネント
+│  │  └─ lib/       # pocketbaseClient など
 │  ├─ entities/     # ドメインモデル層
-│  │  └─ [entity]/  # 各エンティティ（user, post等）
-│  │     ├─ api/    # エンティティ固有のServer Actions
-│  │     ├─ model/  # 型定義・バリデーション
-│  │     └─ lib/    # エンティティ固有のユーティリティ
-│  ├─ features/     # 機能単位のSlice群
-│  │  └─ [feature]/ # 各機能（chat, image-generation等）
-│  │     ├─ api/    # 機能固有のServer Actions
-│  │     ├─ model/  # 機能固有の状態管理
-│  │     └─ ui/     # 機能固有のコンポーネント
-│  └─ pages/        # 画面コンポーネント
-│     └─ [page]/    # 各ページ
-│        ├─ ui/     # ページコンポーネント
-│        └─ model/  # ページ固有の状態管理
+│  ├─ features/     # Slice 群（機能単位）
+│  └─ pages/        # 画面
 ```
 
 ### アーキテクチャ原則
-
-#### **Feature Sliced Design（FSD）の層構造**
-- **Shared**: 純粋な共通リソース（どの機能にも依存しない）
-- **Entities**: ドメインモデル・エンティティ（User, Post等の業務概念）
-- **Features**: ビジネス機能（Chat, ImageGeneration等の機能）
-- **Pages**: 画面コンポーネント（ルーティングに対応する表示層）
-
-#### **Server Actionsの配置ルール**
-- **🚨 共通APIクライアント**: `src/shared/server/*.server.ts` のみ
-- **✅ エンティティ操作**: `src/entities/[entity]/api/` に配置
-- **✅ 機能固有処理**: `src/features/[feature]/api/` に配置
-- **❌ sharedに機能固有のServer Action配置は禁止**
-
-#### **開発原則**
 - 適切な責務分割を行い実装する
 - 一つのファイルに実装をまとめすぎず、適切に責務を分割する
 - レスポンシブデザインを実装する
 - 使いやすいUXと美しいUIデザインを心がける
-- FSDの層構造を遵守し、上位層から下位層への依存のみ許可
 
 ## PocketBase データベースルール
 
