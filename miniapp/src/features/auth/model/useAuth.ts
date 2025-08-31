@@ -135,24 +135,35 @@ export function useMiniAppAuth(): UseAuthReturn {
     }
 
     const updateAuthState = (isValid: boolean, record: PocketBaseRecord | null) => {
-      console.log("[useMiniAppAuth] authStore.onChange発火:", {
-        isValid,
-        hasRecord: !!record,
-        timestamp: new Date().toISOString(),
+      // 現在の状態を取得（クロージャの問題を回避）
+      setAuthStatus((currentAuthStatus) => {
+        console.log("[useMiniAppAuth] authStore.onChange発火:", {
+          isValid,
+          hasRecord: !!record,
+          hasToken: !!pb.authStore.token,
+          currentAuthStatus,
+          timestamp: new Date().toISOString(),
+        });
+
+        setIsAuthenticated(isValid);
+
+        if (record && isValid) {
+          const userData = convertToUser(record);
+          setUser(userData);
+          setAuthMessage("認証済み");
+          return "success";
+        } else {
+          // 認証処理中または既に認証成功している場合はidleに戻さない
+          if (currentAuthStatus !== "authenticating" && currentAuthStatus !== "success") {
+            setUser(null);
+            setAuthMessage("認証情報を待機しています...");
+            return "idle";
+          }
+          // 状態を維持
+          console.log("[useMiniAppAuth] 認証状態を維持:", currentAuthStatus);
+          return currentAuthStatus;
+        }
       });
-
-      setIsAuthenticated(isValid);
-
-      if (record && isValid) {
-        const userData = convertToUser(record);
-        setUser(userData);
-        setAuthStatus("success");
-        setAuthMessage("認証済み");
-      } else {
-        setUser(null);
-        setAuthStatus("idle");
-        setAuthMessage("認証情報を待機しています...");
-      }
     };
 
     // 初期状態を設定
@@ -320,7 +331,11 @@ export function useMiniAppAuth(): UseAuthReturn {
           return;
         }
 
-        console.log("[useMiniAppAuth] 認証成功:", authData.record.email);
+        console.log("[useMiniAppAuth] 認証成功:", {
+          email: authData.record.email,
+          authStoreIsValid: pb.authStore.isValid,
+          hasToken: !!pb.authStore.token,
+        });
 
         // authStore.onChangeが自動で状態を更新するため手動setStateは不要
 
@@ -371,10 +386,11 @@ export function useMiniAppAuth(): UseAuthReturn {
             .collection("users")
             .authWithPassword(email, password);
 
-          console.log(
-            "[useMiniAppAuth] ユーザー作成後認証成功:",
-            authData.record.email
-          );
+          console.log("[useMiniAppAuth] ユーザー作成後認証成功:", {
+            email: authData.record.email,
+            authStoreIsValid: pb.authStore.isValid,
+            hasToken: !!pb.authStore.token,
+          });
 
           // 親ページに認証成功を通知
           notifyAuthSuccess({
@@ -451,7 +467,11 @@ export function useMiniAppAuth(): UseAuthReturn {
         // 既に認証済みの場合は処理をスキップ
         if (isAuthenticated) {
           console.log(
-            "[useMiniAppAuth] 既に認証済みのため認証メッセージをスキップ"
+            "[useMiniAppAuth] 既に認証済みのため認証メッセージをスキップ:",
+            {
+              isAuthenticated,
+              authStoreIsValid: pb.authStore.isValid,
+            }
           );
           return;
         }
@@ -465,7 +485,11 @@ export function useMiniAppAuth(): UseAuthReturn {
         }
 
         console.log(
-          "[useMiniAppAuth] 認証メッセージを受信 - デバウンス認証処理を開始"
+          "[useMiniAppAuth] 認証メッセージを受信 - デバウンス認証処理を開始:",
+          {
+            hasEmail: !!data.data?.email,
+            hasPassword: !!data.data?.password,
+          }
         );
         const { email, password } = data.data;
         debouncedHandleAuthentication(email, password);
