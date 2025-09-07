@@ -5,7 +5,8 @@
   "main": "server.ts",
   "scripts": {
     "start": "tsx server.ts",
-    "dev": "tsx watch server.ts"
+    "dev": "tsx watch server.ts",
+    "agent": "tsx src/index.ts"
   },
   "dependencies": {
     "@anthropic-ai/claude-code": "^1.0.98",
