@@ -21,7 +21,6 @@ interface AgentExecuteRequest {
   miniappId: string
   resume?: boolean
   model?: string
-  async?: boolean  // 非同期実行フラグ（新規追加）
 }
 
 interface AgentExecuteResult {
@@ -62,95 +61,6 @@ app.use('*', logger())
 // Helper Functions
 // ============================================================================
 
-// 既存の同期実行関数（後方互換性のため）
-async function executeAgentCommand(req: AgentExecuteRequest): Promise<AgentExecuteResult> {
-  const startTime = Date.now()
-  
-  // コマンド構築 - pnpm execを使用
-  const args = [
-    'exec',
-    'tsx',
-    'src/index.ts',  // 相対パスに変更
-    req.userPrompt,
-    req.aiPrompt,
-    req.userId,
-    req.miniappId,
-  ]
-  
-  // オプション引数を追加
-  if (req.resume) {
-    args.push('--resume')
-  }
-  if (req.model) {
-    args.push('--model', req.model)
-  }
-  
-  return new Promise((resolve, reject) => {
-    console.log(`[Agent] Executing: pnpm ${args.join(' ')}`)
-    
-    const childProcess = spawn('pnpm', args, {
-      cwd: process.cwd(),  // 現在のディレクトリを使用
-      env: {
-        ...process.env,
-        NODE_ENV: 'production',
-        ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
-        GOOGLE_API_KEY: process.env.GOOGLE_API_KEY,
-      },
-      stdio: ['pipe', 'pipe', 'pipe'],
-    })
-    
-    let stdout = ''
-    let stderr = ''
-    
-    childProcess.stdout?.on('data', (data) => {
-      const text = data.toString()
-      stdout += text
-      console.log(`[Agent STDOUT] ${text.trim()}`)
-    })
-    
-    childProcess.stderr?.on('data', (data) => {
-      const text = data.toString()
-      stderr += text
-      console.log(`[Agent STDERR] ${text.trim()}`)
-    })
-    
-    childProcess.on('close', (exitCode) => {
-      const duration = Date.now() - startTime
-      console.log(`[Agent] Process finished with exit code ${exitCode} in ${duration}ms`)
-      
-      // JSON出力をパースしてみる
-      let parsedOutput = null
-      try {
-        const jsonMatch = stdout.match(/\{[\s\S]*\}/)
-        if (jsonMatch) {
-          parsedOutput = JSON.parse(jsonMatch[0])
-        }
-      } catch (e) {
-        // JSON パースに失敗した場合は無視
-      }
-      
-      resolve({
-        stdout,
-        stderr,
-        exitCode: exitCode || 0,
-        duration,
-        parsedOutput,
-      })
-    })
-    
-    childProcess.on('error', (error) => {
-      console.error(`[Agent] Process error:`, error)
-      reject(error)
-    })
-    
-    // タイムアウト (5分)
-    setTimeout(() => {
-      console.warn(`[Agent] Process timeout, killing...`)
-      childProcess.kill('SIGKILL')
-      reject(new Error('Agent execution timeout (5 minutes)'))
-    }, 300000)
-  })
-}
 
 // プロセスハンドラー設定
 function setupProcessHandlers(session: AgentSession) {
@@ -211,7 +121,7 @@ app.get('/health', (c) => {
   })
 })
 
-// Agent実行エンドポイント（同期/非同期対応）
+// Agent実行エンドポイント（非同期実行のみ）
 app.post('/execute/agent', async (c) => {
   try {
     const request = await c.req.json<AgentExecuteRequest>()
@@ -229,81 +139,62 @@ app.post('/execute/agent', async (c) => {
     
     console.log(`[Agent] Starting execution for user ${request.userId}, miniapp ${request.miniappId}`)
     
-    if (request.async) {
-      // 非同期実行
-      const sessionId = uuidv4()
-      
-      // コマンド構築 - pnpm execを使用
-      const args = [
-        'exec',
-        'tsx',
-        '/agent/agent/src/index.ts',
-        request.userPrompt,
-        request.aiPrompt,
-        request.userId,
-        request.miniappId,
-      ]
-      
-      // オプション引数を追加
-      if (request.resume) {
-        args.push('--resume')
-      }
-      if (request.model) {
-        args.push('--model', request.model)
-      }
-      
-      console.log(`[Agent] Starting async execution: pnpm ${args.join(' ')}`)
-      
-      const childProcess = spawn('pnpm', args, {
-        cwd: process.cwd(),  // 現在のディレクトリを使用
-        env: {
-          ...process.env,
-          NODE_ENV: 'production',
-          ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
-          GOOGLE_API_KEY: process.env.GOOGLE_API_KEY,
-        },
-        stdio: ['pipe', 'pipe', 'pipe'],
-      })
-      
-      const session: AgentSession = {
-        sessionId,
-        childProcess,
-        startTime: Date.now(),
-        status: 'running',
-        stdout: '',
-        stderr: '',
-        exitCode: null,
-        request
-      }
-      
-      // バックグラウンドで出力収集
-      setupProcessHandlers(session)
-      sessions.set(sessionId, session)
-      
-      return c.json({
-        success: true,
-        sessionId,
-        status: 'running',
-        message: 'Agent execution started'
-      })
-    } else {
-      // 同期実行（後方互換性）
-      const result = await executeAgentCommand(request)
-      
-      return c.json({
-        success: true,
-        result,
-        request: {
-          userPrompt: request.userPrompt,
-          aiPrompt: request.aiPrompt,
-          userId: request.userId,
-          miniappId: request.miniappId,
-          resume: request.resume,
-          model: request.model,
-        },
-        timestamp: new Date().toISOString(),
-      })
+    // 非同期実行
+    const sessionId = uuidv4()
+    
+    // コマンド構築 - pnpm execを使用
+    const args = [
+      'exec',
+      'tsx',
+      'src/index.ts',
+      request.userPrompt,
+      request.aiPrompt,
+      request.userId,
+      request.miniappId,
+    ]
+    
+    // オプション引数を追加
+    if (request.resume) {
+      args.push('--resume')
     }
+    if (request.model) {
+      args.push('--model', request.model)
+    }
+    
+    console.log(`[Agent] Starting async execution: pnpm ${args.join(' ')}`)
+    
+    const childProcess = spawn('pnpm', args, {
+      cwd: process.cwd(),  // 現在のディレクトリを使用
+      env: {
+        ...process.env,
+        NODE_ENV: 'production',
+        ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
+        GOOGLE_API_KEY: process.env.GOOGLE_API_KEY,
+      },
+      stdio: ['pipe', 'pipe', 'pipe'],
+    })
+    
+    const session: AgentSession = {
+      sessionId,
+      childProcess,
+      startTime: Date.now(),
+      status: 'running',
+      stdout: '',
+      stderr: '',
+      exitCode: null,
+      request
+    }
+    
+    // バックグラウンドで出力収集
+    setupProcessHandlers(session)
+    sessions.set(sessionId, session)
+    
+    return c.json({
+      success: true,
+      sessionId,
+      status: 'running',
+      message: 'Agent execution started'
+    })
   } catch (error) {
     console.error('[Agent] Execution failed:', error)
     
