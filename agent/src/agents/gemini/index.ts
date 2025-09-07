@@ -47,7 +47,7 @@ export function query({
   
   // 環境変数の設定
   if (!env) {
-    env = { ...process.env };
+    env = { ...process.env } as Record<string, string>;
   }
 
   // Gemini CLIの引数を構築

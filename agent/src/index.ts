@@ -3,8 +3,8 @@ import {
   createDevelopmentRecord,
   updateDevelopmentStatusToError,
   getPreviousSessionId,
-} from "./core/database.ts";
-import { createAgent, getAvailableAgents } from "./core/agent-factory.ts";
+} from "./core/database";
+import { createAgent, getAvailableAgents } from "./core/agent-factory";
 
 const program = new Command();
 

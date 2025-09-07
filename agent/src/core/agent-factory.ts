@@ -1,4 +1,4 @@
-import type { DevelopmentRecord } from "./types.ts";
+import type { DevelopmentRecord } from "./types";
 
 // Agent configuration options
 export interface AgentOptions {
@@ -23,7 +23,7 @@ export interface Agent {
 export async function createAgent(agentType: string): Promise<Agent> {
   switch (agentType) {
     case "claude-code": {
-      const claudeCodeModule = await import("../agents/claude-code/executor.ts");
+      const claudeCodeModule = await import("../agents/claude-code/executor");
       return {
         executeDevelopmentCycle: claudeCodeModule.executeDevelopmentCycle,
       };

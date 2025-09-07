@@ -11,45 +11,55 @@ React + AI Agent を組み合わせたミニアプリケーション開発テン
 - **Frontend**: React 19 + TypeScript + Vite + shadcn/ui + Tailwind CSS
 - **AI Agent**: Claude Code executor with HTTP API server
 - **Architecture**: Feature Sliced Design (FSD)
+- **Package Manager**: pnpm (必須)
+
+## パッケージマネージャー
+
+**🚨 重要**: このプロジェクトは**pnpm**を使用しています。
+- **必須**: すべてのコマンドで`pnpm`を使用すること
+- **禁止**: `npm`や`yarn`の使用（依存関係の不整合を防ぐため）
 
 ## コマンド一覧
 
 ### フロントエンド開発（`frontend/`）
 ```bash
 # 本番ビルド（メインコマンド）
-npm run build
+pnpm run build
 
 # 開発時の自動リビルド
-npm run build:watch
+pnpm run build:watch
 
 # TypeScript型チェック
-npm run tsc
+pnpm run tsc
 
 # ESLintチェック
-npm run lint
+pnpm run lint
 
 # プレビューサーバー起動
-npm run preview
+pnpm run preview
 
-# 🚨 禁止: npm run dev（開発サーバー無効）
+# 🚨 禁止: pnpm run dev（開発サーバー無効）
 ```
 
 ### AIエージェントAPI（`agent/`）
 ```bash
 # サーバー起動（本番）
-npm start
+pnpm start
 
 # 開発モード（自動再起動）
-npm run dev
+pnpm run dev
+
+# TypeScript型チェック
+pnpm tsc --noEmit
 ```
 
 ### 全体起動（推奨開発フロー）
 ```bash
 # 1. Agent API起動
-cd agent && npm run dev
+cd agent && pnpm run dev
 
 # 2. Frontend開発（別ターミナル）
-cd frontend && npm run build:watch
+cd frontend && pnpm run build:watch
 ```
 
 ## プロジェクト構成
@@ -140,7 +150,7 @@ try {
 
 追加時:
 ```bash
-npx shadcn@latest add <component-name> --overwrite
+pnpm dlx shadcn@latest add <component-name> --overwrite
 ```
 
 ## Agent API Architecture

@@ -6,9 +6,9 @@ import type {
   SDKAssistantMessage,
   SDKResultMessage,
   SDKSystemMessage,
-} from "./types.ts";
-import { executeVersionedRcloneCopy } from "./rclone-sync.ts";
-import llmPriceData from "../const/llm_price.json" assert { type: "json" };
+} from "./types";
+import { executeVersionedRcloneCopy } from "./rclone-sync";
+import llmPriceData from "../const/llm_price.json" with { type: "json" };
 
 // Initialize Supabase client
 const supabaseUrl = process.env.SUPABASE_URL;

@@ -2,14 +2,14 @@ import { query } from "@anthropic-ai/claude-code";
 import { exec } from "child_process";
 import { promisify } from "util";
 import type { Options } from "@anthropic-ai/claude-code";
-import type { DevelopmentRecord } from "../../core/types.ts";
-import { BuildError } from "../../core/types.ts";
+import type { DevelopmentRecord } from "../../core/types";
+import { BuildError } from "../../core/types";
 import {
   saveMessageToDatabase,
   updateDevelopmentStatusToCompleted,
   updateDevelopmentStatusToError,
-} from "../../core/database.ts";
-import { formatMessage } from "../../core/formatter.ts";
+} from "../../core/database";
+import { formatMessage } from "../../core/formatter";
 
 const execAsync = promisify(exec);
 

@@ -18,6 +18,10 @@ export class GeminiQuery implements QueryInterface {
   private startTime = Date.now();
   private numTurns = 0;
 
+  async [Symbol.asyncDispose](): Promise<void> {
+    await this.return();
+  }
+
   constructor(
     childProcess: ChildProcess,
     processExitPromise: Promise<void>
