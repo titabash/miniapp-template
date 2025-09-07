@@ -220,7 +220,7 @@ const server = http.createServer(async (req, res) => {
   }))
 })
 
-const PORT = Number(process.env.PORT) || 3001
+const PORT = 3030
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`[Agent API] Server running on http://0.0.0.0:${PORT}`)
   console.log(`[Agent API] Available endpoints:`)
