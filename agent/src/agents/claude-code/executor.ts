@@ -87,10 +87,11 @@ export function createQueryOptions(
       "WebSearch",
       "WebFetch",
       "Bash(rm -f ./)",
-      "Bash(npx shadcn@latest add:*)",
-      "Bash(npx shadcn@latest add --overwrite:*)",
-      "Bash(npm install:*)",
-      "Bash(npm run build)",
+      "Bash(pnpm dlx shadcn@latest add:*)",
+      "Bash(pnpm dlx shadcn@latest add --overwrite:*)",
+      "Bash(pnpm install)",
+      "Bash(pnpm install:*)",
+      "Bash(pnpm run build)",
       "mcp__pocketbase",
       "mcp__magicuidesign",
       "mcp__shadcn",
@@ -123,9 +124,9 @@ export function createQueryOptions(
       "Bash(rm -f ~)",          // ホーム配下
       "Bash(rm -f * )",         // ワイルドカード（ゆるめのガード）
       "Bash(rm -f */)",          // ディレクトリワイルドカード
-      "Bash(npm run dev)",
-      "Bash(npm run preview)",
-      "Bash(npm run build:watch)",
+      "Bash(pnpm run dev)",
+      "Bash(pnpm run preview)",
+      "Bash(pnpm run build:watch)",
     ],
   };
 
