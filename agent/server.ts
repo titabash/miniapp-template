@@ -22,11 +22,11 @@ interface AgentExecuteResult {
 
 async function executeAgentCommand(req: AgentExecuteRequest): Promise<AgentExecuteResult> {
   const startTime = Date.now()
-  
+
   // コマンド構築 - 元のコマンド形式を再現
   const args = [
     'tsx',
-    '/app/agent/src/index.ts',
+    '/agent/agent/src/index.ts',
     req.userPrompt,
     req.aiPrompt,
     req.userId,
@@ -43,7 +43,7 @@ async function executeAgentCommand(req: AgentExecuteRequest): Promise<AgentExecu
 
   return new Promise((resolve, reject) => {
     console.log(`[Agent] Executing: npx ${args.join(' ')}`)
-    
+
     const childProcess = spawn('npx', args, {
       cwd: '/app/agent',
       env: {
@@ -75,7 +75,7 @@ async function executeAgentCommand(req: AgentExecuteRequest): Promise<AgentExecu
     childProcess.on('close', (exitCode) => {
       const duration = Date.now() - startTime
       console.log(`[Agent] Process finished with exit code ${exitCode} in ${duration}ms`)
-      
+
       // JSON出力をパースしてみる
       let parsedOutput = null
       try {
@@ -154,11 +154,11 @@ const server = http.createServer(async (req, res) => {
       req.on('end', async () => {
         try {
           const request: AgentExecuteRequest = JSON.parse(body)
-          
+
           // 入力検証
           const required = ['userPrompt', 'aiPrompt', 'userId', 'miniappId']
           const missing = required.filter(field => !request[field as keyof AgentExecuteRequest])
-          
+
           if (missing.length > 0) {
             res.writeHead(400, { 'Content-Type': 'application/json' })
             res.end(JSON.stringify({
@@ -169,7 +169,7 @@ const server = http.createServer(async (req, res) => {
           }
 
           console.log(`[Agent] Starting execution for user ${request.userId}, miniapp ${request.miniappId}`)
-          
+
           const result = await executeAgentCommand(request)
 
           res.writeHead(200, { 'Content-Type': 'application/json' })
@@ -189,7 +189,7 @@ const server = http.createServer(async (req, res) => {
 
         } catch (error) {
           console.error('[Agent] Execution failed:', error)
-          
+
           res.writeHead(500, { 'Content-Type': 'application/json' })
           res.end(JSON.stringify({
             success: false,
