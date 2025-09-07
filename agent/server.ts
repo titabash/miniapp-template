@@ -139,6 +139,31 @@ app.post('/execute/agent', async (c) => {
     
     console.log(`[Agent] Starting execution for user ${request.userId}, miniapp ${request.miniappId}`)
     
+    // localhost:4000 のヘルスチェック
+    console.log('[Agent] Checking frontend server health at localhost:4000...')
+    try {
+      const healthResponse = await fetch('http://localhost:4000', {
+        method: 'GET',
+        signal: AbortSignal.timeout(5000) // 5秒タイムアウト
+      })
+      
+      if (healthResponse.status !== 200) {
+        console.error(`[Agent] Frontend server returned status ${healthResponse.status}`)
+        return c.json({
+          success: false,
+          error: `Frontend server at localhost:4000 is not healthy (status: ${healthResponse.status}). Please ensure the frontend server is running.`
+        }, 503)
+      }
+      
+      console.log('[Agent] Frontend server is healthy (status: 200)')
+    } catch (healthError) {
+      console.error('[Agent] Frontend server health check failed:', healthError)
+      return c.json({
+        success: false,
+        error: 'Frontend server at localhost:4000 is not accessible. Please ensure the frontend server is running.'
+      }, 503)
+    }
+    
     // 非同期実行
     const sessionId = uuidv4()
     
