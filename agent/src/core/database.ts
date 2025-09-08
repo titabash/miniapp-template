@@ -7,7 +7,7 @@ import type {
   SDKResultMessage,
   SDKSystemMessage,
 } from "./types";
-import { executeGitCommit } from "./git-sync";
+import { executeGitCommitWithConflictResolution } from "./git-sync";
 import llmPriceData from "../const/llm_price.json" with { type: "json" };
 
 // Initialize Supabase client
@@ -478,13 +478,17 @@ export async function updateDevelopmentStatusToCompleted(
   sessionId?: string
 ) {
   try {
-    // 1. Execute git commit
+    // 1. Execute git commit with conflict resolution
     console.log(
       `🚀 Creating git commit for miniapp ${developmentRecord.miniapp_id}...`
     );
-    const { commitHash, message } = await executeGitCommit(
+    const { commitHash, message, hadConflicts } = await executeGitCommitWithConflictResolution(
       developmentRecord.miniapp_id
     );
+    
+    if (hadConflicts) {
+      console.log(`⚠️ Conflicts were detected and resolved automatically`);
+    }
     
     console.log(
       `📦 Created commit ${commitHash} for miniapp ${developmentRecord.miniapp_id}`
