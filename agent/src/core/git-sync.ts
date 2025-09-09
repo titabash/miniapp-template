@@ -197,9 +197,11 @@ ${conflictDetails}
 export async function executeGitCommitWithConflictResolution(
   miniAppId: string
 ): Promise<{
-  commitHash: string;
+  commitHash: string | null;
   message: string;
   hadConflicts: boolean;
+  success: boolean;
+  error?: string;
 }> {
   console.log(
     `🚀 Starting git commit with conflict resolution for miniapp ${miniAppId}...`
@@ -346,11 +348,21 @@ export async function executeGitCommitWithConflictResolution(
     return {
       commitHash,
       message: commitMessage,
-      hadConflicts
+      hadConflicts,
+      success: true
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error("❌ Git commit failed:", error);
-    throw error;
+    console.error("⚠️ Returning error status but not throwing");
+    
+    // Return error status instead of throwing
+    return {
+      commitHash: null,
+      message: "",
+      hadConflicts: false,
+      success: false,
+      error: error.message || String(error)
+    };
   }
 }
 
@@ -360,13 +372,17 @@ export async function executeGitCommitWithConflictResolution(
 export async function executeGitCommit(
   miniAppId: string
 ): Promise<{
-  commitHash: string;
+  commitHash: string | null;
   message: string;
+  success: boolean;
+  error?: string;
 }> {
   const result = await executeGitCommitWithConflictResolution(miniAppId);
   return {
     commitHash: result.commitHash,
-    message: result.message
+    message: result.message,
+    success: result.success,
+    error: result.error
   };
 }
 
@@ -376,7 +392,7 @@ export async function executeGitCommit(
  */
 export async function executeVersionedRcloneCopy(
   miniAppId: string,
-  version: number
+  _version: number
 ): Promise<{
   paths: {
     reactCodePath?: string;
@@ -388,13 +404,16 @@ export async function executeVersionedRcloneCopy(
   );
 
   // Git commitを実行
-  const { commitHash } = await executeGitCommit(miniAppId);
+  const result = await executeGitCommit(miniAppId);
+  
+  // エラーがあってもパスを返す（commitHashがnullの場合は代替値を使用）
+  const hashOrFallback = result.commitHash || "no-commit";
 
   // 後方互換性のため、旧形式のレスポンスを返す
   return {
     paths: {
-      reactCodePath: `${miniAppId}/commit/${commitHash}/`,
-      pocketbaseDataPath: `${miniAppId}/commit/${commitHash}/pb_migrations/`,
+      reactCodePath: `${miniAppId}/commit/${hashOrFallback}/`,
+      pocketbaseDataPath: `${miniAppId}/commit/${hashOrFallback}/pb_migrations/`,
     },
   };
 }

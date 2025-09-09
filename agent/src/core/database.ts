@@ -600,7 +600,7 @@ export async function getNextVersion(miniAppId: string): Promise<number> {
 export async function createVersionRecord(
   miniAppId: string,
   version: number,
-  commitHash: string,
+  commitHash: string | null,
   developmentId?: string
 ): Promise<void> {
   try {
