@@ -206,7 +206,7 @@ export async function executeGitCommitWithConflictResolution(
   );
 
   try {
-    const repoPath = path.resolve(process.cwd(), "miniapp");
+    const repoPath = "/app";
 
     // ディレクトリの存在確認
     if (!existsSync(repoPath)) {
