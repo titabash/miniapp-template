@@ -478,9 +478,12 @@ export async function updateDevelopmentStatusToCompleted(
   sessionId?: string
 ) {
   try {
-    // 1. Execute git commit with conflict resolution
+    // 1. Get next version number
+    const version = await getNextVersion(developmentRecord.miniapp_id);
+    
+    // 2. Execute git commit with conflict resolution
     console.log(
-      `🚀 Creating git commit for miniapp ${developmentRecord.miniapp_id}...`
+      `🚀 Creating git commit for miniapp ${developmentRecord.miniapp_id} v${version}...`
     );
     const { commitHash, message, hadConflicts } = await executeGitCommitWithConflictResolution(
       developmentRecord.miniapp_id
@@ -491,13 +494,24 @@ export async function updateDevelopmentStatusToCompleted(
     }
     
     console.log(
-      `📦 Created commit ${commitHash} for miniapp ${developmentRecord.miniapp_id}`
+      `📦 Created commit ${commitHash} for miniapp ${developmentRecord.miniapp_id} v${version}`
+    );
+    
+    // 3. Create version record in database with commit_hash
+    await createVersionRecord(
+      developmentRecord.miniapp_id,
+      version,
+      commitHash,
+      developmentRecord.id
+    );
+    
+    console.log(
+      `📦 Created version ${version} with commit ${commitHash} for miniapp ${developmentRecord.miniapp_id}`
     );
 
-    // 2. Update development status to completed with commit_hash
+    // 4. Update development status to completed
     const updateData: any = {
       status: "COMPLETED",
-      commit_hash: commitHash,
       finished_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
@@ -520,7 +534,7 @@ export async function updateDevelopmentStatusToCompleted(
       console.log("📝 Development status updated to COMPLETED");
       console.log("Updated record:", data);
       console.log(
-        `✅ Commit ${commitHash} created and development completed`
+        `✅ Version ${version} created with commit ${commitHash} and development completed`
       );
     }
   } catch (dbError) {
@@ -555,6 +569,82 @@ export async function getPreviousSessionId(
   } catch (error) {
     console.log("⚠️ Could not retrieve previous session");
     return null;
+  }
+}
+
+// Version management functions
+export async function getNextVersion(miniAppId: string): Promise<number> {
+  try {
+    // 現在の最新バージョンを取得
+    const { data: latestVersion } = await supabase
+      .from("miniapp_versions")
+      .select("version")
+      .eq("miniapp_id", miniAppId)
+      .order("version", { ascending: false })
+      .limit(1)
+      .single();
+
+    const nextVersion = latestVersion ? latestVersion.version + 1 : 1;
+    console.log(`📝 Next version for miniapp ${miniAppId}: v${nextVersion}`);
+    return nextVersion;
+  } catch (error: any) {
+    console.error(
+      `❌ Failed to get next version for miniapp ${miniAppId}:`,
+      error
+    );
+    // エラーの場合でも初回は1を返す
+    return 1;
+  }
+}
+
+export async function createVersionRecord(
+  miniAppId: string,
+  version: number,
+  commitHash: string,
+  developmentId?: string
+): Promise<void> {
+  try {
+    const now = new Date().toISOString();
+    
+    // MiniAppVersionレコードを作成（commit_hash付き）
+    const { error: versionError } = await supabase
+      .from("miniapp_versions")
+      .insert({
+        id: crypto.randomUUID(),
+        miniapp_id: miniAppId,
+        development_id: developmentId,
+        version,
+        commit_hash: commitHash,
+        react_code_path: `${miniAppId}/v${version}/`,
+        pocketbase_data_path: `${miniAppId}/v${version}/pb_migrations/`,
+        is_published: false,
+        created_at: now,
+        updated_at: now,
+      });
+
+    if (versionError) {
+      console.error("Error creating version record:", versionError);
+      throw versionError;
+    }
+
+    // MiniAppのcurrent_versionも更新
+    const { error: updateError } = await supabase
+      .from("miniapps")
+      .update({
+        current_version: version,
+        updated_at: now,
+      })
+      .eq("id", miniAppId);
+
+    if (updateError) {
+      console.error("Error updating miniapp current version:", updateError);
+      throw updateError;
+    }
+
+    console.log(`✅ Created version record: miniapp ${miniAppId} v${version} (commit: ${commitHash})`);
+  } catch (error: any) {
+    console.error(`❌ Failed to create version record:`, error);
+    throw new Error(`Failed to create version record: ${error.message}`);
   }
 }
 
