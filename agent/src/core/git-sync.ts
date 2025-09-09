@@ -20,15 +20,15 @@ async function execGitCommand(
       cwd,
       timeout: 60000, // 60秒タイムアウト
     });
-    
+
     if (stdout) {
       console.log(`📝 Git output: ${stdout.trim()}`);
     }
-    
+
     if (stderr && !stderr.includes("warning:")) {
       console.log(`⚠️ Git stderr: ${stderr.trim()}`);
     }
-    
+
     return { stdout, stderr };
   } catch (error: any) {
     console.error(`❌ Git command failed: ${command}`, error);
@@ -41,18 +41,18 @@ async function execGitCommand(
  */
 async function ensureGitRepo(repoPath: string): Promise<void> {
   const gitDir = path.join(repoPath, ".git");
-  
+
   if (!existsSync(gitDir)) {
     console.log(`📦 Initializing git repository at ${repoPath}`);
     await execGitCommand("init", repoPath);
-    
+
     // デフォルトのユーザー設定（環境変数から取得可能）
     const userName = process.env.GIT_USER_NAME || "MiniApp Agent";
     const userEmail = process.env.GIT_USER_EMAIL || "agent@miniapp.local";
-    
+
     await execGitCommand(`config user.name "${userName}"`, repoPath);
     await execGitCommand(`config user.email "${userEmail}"`, repoPath);
-    
+
     console.log(`✅ Git repository initialized`);
   } else {
     console.log(`📦 Git repository already exists at ${repoPath}`);
@@ -67,16 +67,16 @@ async function ensureRemote(
   remoteName: string = "origin"
 ): Promise<boolean> {
   const remoteUrl = process.env.GIT_REMOTE_URL;
-  
+
   if (!remoteUrl) {
     console.log(`ℹ️ No GIT_REMOTE_URL configured, skipping remote setup`);
     return false;
   }
-  
+
   try {
     // 既存のリモートをチェック
     const { stdout } = await execGitCommand("remote -v", repoPath);
-    
+
     if (stdout.includes(remoteName)) {
       console.log(`📡 Remote '${remoteName}' already configured`);
       // リモートURLを更新（変更があった場合のため）
@@ -91,7 +91,7 @@ async function ensureRemote(
         repoPath
       );
     }
-    
+
     return true;
   } catch (error) {
     console.error(`⚠️ Failed to configure remote: ${error}`);
@@ -121,7 +121,7 @@ async function resolveConflictsWithAI(
   miniAppId: string
 ): Promise<boolean> {
   console.log(`🤖 Using AI to resolve conflicts in ${conflictedFiles.length} files`);
-  
+
   // コンフリクトファイルの内容を読み込み
   let conflictDetails = "";
   for (const file of conflictedFiles) {
@@ -131,7 +131,7 @@ async function resolveConflictsWithAI(
       conflictDetails += `\n\nFile: ${file}\n${content}`;
     }
   }
-  
+
   // Claude Code用のプロンプト作成
   const prompt = `以下のGitコンフリクトを解消してください。各ファイルのコンフリクトマーカー（<<<<<<< HEAD、=======、>>>>>>> など）を適切に解消し、最終的なコードが正しく動作するようにしてください。
 
@@ -155,7 +155,7 @@ ${conflictDetails}
     model: process.env.CLAUDE_MODEL || "claude-sonnet-4",
     cwd: repoPath,
     permissionMode: "acceptEdits",
-    pathToClaudeCodeExecutable: "/agent/agent/node_modules/@anthropic-ai/claude-code/cli.js",
+    pathToClaudeCodeExecutable: "/toolbox/agent/node_modules/@anthropic-ai/claude-code/cli.js",
     allowedTools: [
       "Read",
       "Edit",
@@ -174,7 +174,7 @@ ${conflictDetails}
     let success = false;
     for await (const message of queryIterator) {
       console.log(`📝 AI: ${message.type}`);
-      
+
       // result messageで完了を確認
       if (message.type === "result" && "subtype" in message) {
         if (message.subtype === "success") {
@@ -183,7 +183,7 @@ ${conflictDetails}
         }
       }
     }
-    
+
     return success;
   } catch (error) {
     console.error("❌ AI conflict resolution failed:", error);
@@ -204,23 +204,23 @@ export async function executeGitCommitWithConflictResolution(
   console.log(
     `🚀 Starting git commit with conflict resolution for miniapp ${miniAppId}...`
   );
-  
+
   try {
     const repoPath = path.resolve(process.cwd(), "miniapp");
-    
+
     // ディレクトリの存在確認
     if (!existsSync(repoPath)) {
       throw new Error(`Source directory not found: ${repoPath}`);
     }
-    
+
     console.log(`📦 Creating commit for miniapp ${miniAppId}`);
-    
+
     // Gitリポジトリの初期化
     await ensureGitRepo(repoPath);
-    
+
     // リモートの設定
     const hasRemote = await ensureRemote(repoPath);
-    
+
     // リモートから最新を取得（リモートがある場合）
     if (hasRemote) {
       try {
@@ -230,14 +230,14 @@ export async function executeGitCommitWithConflictResolution(
         console.log("ℹ️ Could not fetch from remote (may not exist yet)");
       }
     }
-    
+
     // 現在のブランチを取得
     const { stdout: currentBranch } = await execGitCommand(
       "rev-parse --abbrev-ref HEAD",
       repoPath
     );
     const isMainBranch = currentBranch.trim() === "main" || currentBranch.trim() === "master";
-    
+
     // mainブランチが存在しない場合は作成
     if (!isMainBranch) {
       try {
@@ -247,24 +247,24 @@ export async function executeGitCommitWithConflictResolution(
         await execGitCommand("checkout main", repoPath);
       }
     }
-    
+
     // すべての変更をステージング
     await execGitCommand("add .", repoPath);
-    
+
     // コミットの作成（変更がある場合のみ）
     let commitHash = "";
     let commitMessage = "";
     let hadConflicts = false;
-    
+
     try {
       const timestamp = new Date().toISOString();
       commitMessage = `Update miniapp ${miniAppId} - ${timestamp}`;
-      
+
       await execGitCommand(
         `commit -m "${commitMessage}"`,
         repoPath
       );
-      
+
       console.log(`✅ Created local commit`);
     } catch (error: any) {
       if (error.message.includes("nothing to commit")) {
@@ -273,7 +273,7 @@ export async function executeGitCommitWithConflictResolution(
         throw error;
       }
     }
-    
+
     // リモートからプル（マージ）を試行
     if (hasRemote) {
       try {
@@ -284,26 +284,26 @@ export async function executeGitCommitWithConflictResolution(
         if (pullError.message.includes("CONFLICT")) {
           console.log("⚠️ Merge conflicts detected!");
           hadConflicts = true;
-          
+
           // コンフリクトファイルを取得
           const conflictedFiles = await getConflictedFiles(repoPath);
           console.log(`📝 Conflicted files: ${conflictedFiles.join(', ')}`);
-          
+
           if (conflictedFiles.length > 0) {
             // AIでコンフリクト解消を試行
             const resolved = await resolveConflictsWithAI(repoPath, conflictedFiles, miniAppId);
-            
+
             if (resolved) {
               // 解消したファイルをステージング
               await execGitCommand("add .", repoPath);
-              
+
               // コンフリクト解消のコミット
               const conflictMessage = `Resolved merge conflicts for miniapp ${miniAppId}`;
               await execGitCommand(
                 `commit -m "${conflictMessage}"`,
                 repoPath
               );
-              
+
               console.log("✅ Conflicts resolved and committed");
               commitMessage = conflictMessage;
             } else {
@@ -319,14 +319,14 @@ export async function executeGitCommitWithConflictResolution(
         }
       }
     }
-    
+
     // 最終的なコミットハッシュを取得
     const { stdout: hash } = await execGitCommand(
       "rev-parse HEAD",
       repoPath
     );
     commitHash = hash.trim();
-    
+
     // リモートへのプッシュ（設定されている場合）
     if (hasRemote && commitHash) {
       try {
@@ -338,11 +338,11 @@ export async function executeGitCommitWithConflictResolution(
         console.log(`ℹ️ Changes are committed locally`);
       }
     }
-    
+
     console.log(
       `✅ Git operations completed successfully with commit: ${commitHash}`
     );
-    
+
     return {
       commitHash,
       message: commitMessage,
@@ -386,10 +386,10 @@ export async function executeVersionedRcloneCopy(
   console.warn(
     "⚠️ executeVersionedRcloneCopy is deprecated. Using executeGitCommit instead."
   );
-  
+
   // Git commitを実行
   const { commitHash } = await executeGitCommit(miniAppId);
-  
+
   // 後方互換性のため、旧形式のレスポンスを返す
   return {
     paths: {
