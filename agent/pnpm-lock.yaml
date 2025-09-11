@@ -20,6 +20,9 @@ dependencies:
   hono:
     specifier: ^4.9.6
     version: 4.9.6
+  pocketbase:
+    specifier: ^0.26.2
+    version: 0.26.2
   tsx:
     specifier: ^4.7.0
     version: 4.20.5
@@ -532,6 +535,10 @@ packages:
   /hono@4.9.6:
     resolution: {integrity: sha512-doVjXhSFvYZ7y0dNokjwwSahcrAfdz+/BCLvAMa/vHLzjj8+CFyV5xteThGUsKdkaasgN+gF2mUxao+SGLpUeA==}
     engines: {node: '>=16.9.0'}
+    dev: false
+
+  /pocketbase@0.26.2:
+    resolution: {integrity: sha512-WA8EOBc3QnSJh8rJ3iYoi9DmmPOMFIgVfAmIGux7wwruUEIzXgvrO4u0W2htfQjGIcyezJkdZOy5Xmh7SxAftw==}
     dev: false
 
   /resolve-pkg-maps@1.0.0:

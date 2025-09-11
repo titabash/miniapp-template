@@ -4,6 +4,7 @@ import { existsSync, readFileSync } from "fs";
 import path from "path";
 import { query } from "@anthropic-ai/claude-code";
 import type { Options } from "@anthropic-ai/claude-code";
+import { fetchAndSaveCollections } from "../utils/pocketbase-collections";
 
 const execAsync = promisify(exec);
 
@@ -250,7 +251,11 @@ export async function executeGitCommitWithConflictResolution(
       }
     }
 
-    // すべての変更をステージング
+    // PocketBaseコレクション情報を取得して保存（Git add前）
+    console.log("📦 Fetching PocketBase collections before Git commit...");
+    await fetchAndSaveCollections();
+
+    // すべての変更をステージング（pc_collection.jsonも含まれる）
     await execGitCommand("add .", repoPath);
 
     // コミットの作成（変更がある場合のみ）
