@@ -61,41 +61,30 @@ async function ensureGitRepo(repoPath: string): Promise<void> {
 }
 
 /**
- * リモートリポジトリの設定
+ * リモートリポジトリの存在確認
+ * upstreamにhttps://github.com/titabash/miniapp-templateが設定されていればtrueを返す
  */
 async function ensureRemote(
   repoPath: string,
   remoteName: string = "origin"
 ): Promise<boolean> {
-  const remoteUrl = process.env.GIT_REMOTE_URL;
-
-  if (!remoteUrl) {
-    console.log(`ℹ️ No GIT_REMOTE_URL configured, skipping remote setup`);
-    return false;
-  }
-
   try {
     // 既存のリモートをチェック
     const { stdout } = await execGitCommand("remote -v", repoPath);
 
-    if (stdout.includes(remoteName)) {
-      console.log(`📡 Remote '${remoteName}' already configured`);
-      // リモートURLを更新（変更があった場合のため）
-      await execGitCommand(
-        `remote set-url ${remoteName} ${remoteUrl}`,
-        repoPath
-      );
-    } else {
-      console.log(`📡 Adding remote '${remoteName}': ${remoteUrl}`);
-      await execGitCommand(
-        `remote add ${remoteName} ${remoteUrl}`,
-        repoPath
-      );
+    // upstreamにhttps://github.com/のリポジトリが設定されているかチェック
+    const hasUpstream = stdout.includes("upstream") && 
+                       stdout.includes("https://github.com/");
+    
+    if (hasUpstream) {
+      console.log(`📡 Upstream template repository is configured, will push to ${remoteName}`);
+      return true;
     }
 
-    return true;
+    console.log(`ℹ️ No upstream template repository configured, skip pushing`);
+    return false;
   } catch (error) {
-    console.error(`⚠️ Failed to configure remote: ${error}`);
+    console.error(`⚠️ Failed to check remote: ${error}`);
     return false;
   }
 }
@@ -118,8 +107,7 @@ async function getConflictedFiles(repoPath: string): Promise<string[]> {
  */
 async function resolveConflictsWithAI(
   repoPath: string,
-  conflictedFiles: string[],
-  miniAppId: string
+  conflictedFiles: string[]
 ): Promise<boolean> {
   console.log(`🤖 Using AI to resolve conflicts in ${conflictedFiles.length} files`);
 
@@ -298,7 +286,7 @@ export async function executeGitCommitWithConflictResolution(
 
           if (conflictedFiles.length > 0) {
             // AIでコンフリクト解消を試行
-            const resolved = await resolveConflictsWithAI(repoPath, conflictedFiles, miniAppId);
+            const resolved = await resolveConflictsWithAI(repoPath, conflictedFiles);
 
             if (resolved) {
               // 解消したファイルをステージング
