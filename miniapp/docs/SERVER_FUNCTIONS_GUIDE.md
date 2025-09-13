@@ -37,8 +37,17 @@
 - **音声**: `whisper`
 
 #### 3. **PocketBase統合** (`pocketbase.server.ts`)
-- PocketBaseインスタンス作成
-- リクエスト毎に独立したデータベース接続
+- Server Functions用のPocketBaseインスタンス作成
+- 管理者認証サポート
+- エラーハンドリング機能
+
+**使い分けガイドライン:**
+- **基本**: クライアントサイド（`@/shared/lib/pocketbase`）を使用
+- **特定用途**: Server Functions（`@/shared/server/pocketbase.server`）を使用
+  - 管理者権限が必要な操作
+  - MastraのAIエージェント実装
+  - バッチ処理・データ集計
+  - 機密情報を扱う処理
 
 ### ❌ **未対応機能**
 
@@ -338,30 +347,83 @@ const result = await window.callServerFunction<ExampleResult>(
 
 ## PocketBase統合の利用例
 
+### クライアントサイド実装（基本・推奨）
+
 ```typescript
-// Server Function
+// Client-side function (基本的な使用方法)
+import { pb } from '@/shared/lib/pocketbase'
+
+export async function getUserData(userId: string): Promise<User> {
+  "use client"
+
+  try {
+    const user = await pb.collection('users').getOne(userId)
+    return user
+  } catch (error) {
+    console.error('Failed to fetch user:', error)
+    throw error
+  }
+}
+```
+
+### Server Functions実装（特定用途）
+
+```typescript
+// Server Function (管理者権限やAIエージェント用)
 import { createPocketBaseInstance } from '@/shared/server/pocketbase.server'
 
-export async function getUserData(userId: string): Promise<ExampleResult> {
+export async function batchUpdateUsers(updates: UserUpdate[]): Promise<void> {
   "use server"
 
   try {
     const pb = await createPocketBaseInstance()
 
-    // 認証処理（必要に応じて）
-    // await pb.collection('users').authWithPassword(email, password)
+    // バッチ処理の実行
+    for (const update of updates) {
+      await pb.collection('users').update(update.id, update.data)
+    }
+  } catch (error) {
+    console.error('Batch update failed:', error)
+    throw error
+  }
+}
+```
 
+### MastraのAIエージェント実装例
+
+```typescript
+// AI Agent with PocketBase integration
+import { createPocketBaseInstance } from '@/shared/server/pocketbase.server'
+import { Mastra } from 'mastra'
+
+export async function aiAnalyzeUserData(userId: string): Promise<AnalysisResult> {
+  "use server"
+
+  try {
+    const pb = await createPocketBaseInstance()
     const user = await pb.collection('users').getOne(userId)
+
+    // AIエージェントによる分析
+    const mastra = new Mastra()
+    const analysis = await mastra.analyze({
+      data: user,
+      prompt: "ユーザーの行動パターンを分析してください"
+    })
+
+    // 分析結果をデータベースに保存
+    await pb.collection('analyses').create({
+      user_id: userId,
+      result: analysis,
+      created_at: new Date()
+    })
 
     return {
       success: true,
-      data: JSON.stringify(user)
+      analysis: analysis
     }
   } catch (error) {
-    return {
-      success: false,
-      error: 'ユーザーデータの取得に失敗しました'
-    }
+    console.error('AI analysis failed:', error)
+    throw error
   }
 }
 ```
@@ -373,6 +435,8 @@ Server Functions で使用する以下の環境変数は既に設定済みです
 - `OPENAI_API_KEY`: OpenAI API アクセス用
 - `FAL_KEY`: fal.ai API アクセス用
 - `POCKETBASE_URL`: PocketBase接続用
+- `POCKETBASE_ADMIN_EMAIL`: PocketBase管理者メール（Server Functions用、オプション）
+- `POCKETBASE_ADMIN_PASSWORD`: PocketBase管理者パスワード（Server Functions用、オプション）
 
 **注意**: 環境変数は既に設定済みのため、新たに `.env` ファイルなどを作成する必要はありません。
 
@@ -509,7 +573,7 @@ src/shared/
 ├── server/                 # Server統合クライアント
 │   ├── fal.server.ts          # fal.ai APIクライアント
 │   ├── openai.server.ts       # OpenAI APIクライアント
-│   └── pocketbase.server.ts   # PocketBase APIクライアント
+│   └── pocketbase.server.ts   # PocketBase Server Functions用
 ├── lib/
 │   └── utils.ts               # 汎用ユーティリティ
 └── ui/                     # 共通UIコンポーネント
@@ -530,12 +594,11 @@ export async function generateImageAction(prompt: string, options?: ImageOptions
 
 #### **Entities層での実装**
 ```typescript
-// src/entities/user/api/updateProfile.ts  
-"use server";
-import { createPocketBaseInstance } from "@/shared/server/pocketbase.server";
+// src/entities/user/api/updateProfile.ts
+"use client";
+import { pb } from "@/shared/lib/pocketbase";
 
 export async function updateUserProfileAction(userId: string, data: UserData) {
-  const pb = await createPocketBaseInstance();
   return await pb.collection('users').update(userId, data);
 }
 ```

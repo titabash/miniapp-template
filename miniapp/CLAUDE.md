@@ -16,7 +16,7 @@ Feature Sliced Design（FSD）アーキテクチャを採用し、拡張性と�
 - **AI Integration**: Mastra (AI Agent Framework) + AI SDK + Anthropic Claude Code
 - **AI Services**: fal.ai (画像・動画生成・音声認識) + OpenAI API
 - **Server Functions**: Next.js Server Actions (外部API統合基盤)
-- **Database**: PocketBase 統合済み
+- **Database**: PocketBase（クライアントサイド基本 + Server Functions対応）
 - **Validation**: Zod (型安全なスキーマバリデーション)
 
 ## プロジェクト構造
@@ -64,9 +64,9 @@ miniapp-next/
         │   ├── utils.ts       # 汎用ユーティリティ
         │   └── variants.ts    # バリアント設定
         └── server/   # 外部APIクライアント（共通ライブラリ）
-            ├── fal.server.ts      # fal.ai APIクライアント
-            ├── openai.server.ts   # OpenAI APIクライアント
-            └── pocketbase.server.ts  # PocketBase APIクライアント
+            ├── fal.server.ts          # fal.ai APIクライアント
+            ├── openai.server.ts       # OpenAI APIクライアント
+            └── pocketbase.server.ts   # PocketBase Server Functions用
         └── ui/       # shadcn/ui コンポーネント
             ├── alert.tsx
             ├── badge.tsx
@@ -106,7 +106,9 @@ npm run lint
 ### 1. 認証システム
 
 - **postMessage連携**: iframe環境での認証情報受信
-- **PocketBase統合**: `@/shared/lib/pocketbase` 経由のデータベース接続
+- **PocketBase統合**:
+  - 基本: クライアントサイド（`@/shared/lib/pocketbase`）
+  - 特定用途: Server Functions（`@/shared/server/pocketbase.server`）
 - **永続化**: LocalStorage + Cookie の二重永続化
 - **自動トークンリフレッシュ**: セッション管理の自動化
 
@@ -162,7 +164,7 @@ import { generateImage } from "@/shared/server/fal.server"; // 共通ライブ�
 
 // エンティティ固有のServer Actions（FSD準拠）
 // src/entities/user/api/getUser.ts
-import { createPocketBaseInstance } from "@/shared/server/pocketbase.server"; // 共通ライブラリ利用
+import { pb } from "@/shared/lib/pocketbase"; // クライアントサイド専用
 
 // 詳細な実装方法は docs/SERVER_FUNCTIONS_GUIDE.md を参照
 ```
@@ -212,8 +214,23 @@ NEXT_PUBLIC_POCKETBASE_URL=http://127.0.0.1:8090
 
 ### 基本開発ルール
 
-1. **PocketBase**: 必ず `@/shared/lib/pocketbase` の `pb` インスタンスのみ使用
-2. **Server Actions**: 外部API機能は `src/shared/server/actions/` 内に実装
+1. **PocketBase使い分けガイドライン**:
+
+   **クライアントサイド（基本・推奨）** - `@/shared/lib/pocketbase`
+   - ユーザー認証が必要な操作
+   - リアルタイムサブスクリプション
+   - ユーザーコンテキストに依存する操作
+   - 通常のCRUD操作
+
+   **Server Functions（特定用途のみ）** - `@/shared/server/pocketbase.server`
+   - 管理者権限が必要な操作
+   - 機密情報を扱う処理
+   - バッチ処理・データ集計
+   - 外部APIとの連携が必要な処理
+   - MastraのAIエージェント実装
+   - サーバーサイドバリデーション
+
+2. **Server Actions**: 外部API機能は `src/shared/server/` 内に実装
 3. **FSD準拠**: Feature Sliced Design の階層構造を維持
 4. **コンポーネント**: 新しいUIコンポーネントは shadcn/ui を優先使用
 

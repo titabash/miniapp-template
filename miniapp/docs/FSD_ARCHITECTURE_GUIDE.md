@@ -111,10 +111,20 @@ export interface User {
 
 ```typescript
 // src/entities/user/api/getUser.ts
+
+// クライアントサイド実装（基本・推奨）
+"use client";
+import { pb } from "@/shared/lib/pocketbase";
+
+export async function getUserAction(userId: string): Promise<User | null> {
+  return await pb.collection('users').getOne(userId);
+}
+
+// Server Functions実装（管理者権限が必要な場合）
 "use server";
 import { createPocketBaseInstance } from "@/shared/server/pocketbase.server";
 
-export async function getUserAction(userId: string): Promise<User | null> {
+export async function getUserAdminAction(userId: string): Promise<User | null> {
   const pb = await createPocketBaseInstance();
   return await pb.collection('users').getOne(userId);
 }
@@ -214,12 +224,31 @@ export interface Post {
 #### Step 2: 機能の実装
 ```typescript
 // src/features/blog-editor/api/createPost.ts
-"use server";
-import { createPocketBaseInstance } from "@/shared/server/pocketbase.server";
+
+// クライアントサイド実装（基本・推奨）
+"use client";
+import { pb } from "@/shared/lib/pocketbase";
 
 export async function createPostAction(postData: CreatePostData) {
-  const pb = await createPocketBaseInstance();
   return await pb.collection('posts').create(postData);
+}
+
+// Server Functions実装（AIエージェントやバッチ処理の場合）
+"use server";
+import { createPocketBaseInstance } from "@/shared/server/pocketbase.server";
+import { Mastra } from "mastra";
+
+export async function createPostWithAIAction(postData: CreatePostData) {
+  const pb = await createPocketBaseInstance();
+
+  // AIでコンテンツを生成
+  const mastra = new Mastra();
+  const enhancedContent = await mastra.enhance(postData.content);
+
+  return await pb.collection('posts').create({
+    ...postData,
+    content: enhancedContent
+  });
 }
 ```
 
