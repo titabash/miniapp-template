@@ -65,34 +65,34 @@ app.use('*', logger())
 // プロセスハンドラー設定
 function setupProcessHandlers(session: AgentSession) {
   const { childProcess } = session
-  
+
   childProcess.stdout?.on('data', (data) => {
     session.stdout += data.toString()
     console.log(`[Session ${session.sessionId}] STDOUT:`, data.toString().trim())
   })
-  
+
   childProcess.stderr?.on('data', (data) => {
     session.stderr += data.toString()
     console.log(`[Session ${session.sessionId}] STDERR:`, data.toString().trim())
   })
-  
+
   childProcess.on('close', (exitCode) => {
     session.exitCode = exitCode || 0
     session.status = session.status === 'stopped' ? 'stopped' : 'completed'
     console.log(`[Session ${session.sessionId}] Process exited with code ${exitCode}`)
-    
+
     // タイムアウトハンドルをクリア
     if (session.timeoutHandle) {
       clearTimeout(session.timeoutHandle)
     }
   })
-  
+
   childProcess.on('error', (error) => {
     session.status = 'error'
     session.stderr += `Process error: ${error.message}\n`
     console.error(`[Session ${session.sessionId}] Process error:`, error)
   })
-  
+
   // タイムアウト設定（5分）
   session.timeoutHandle = setTimeout(() => {
     if (session.status === 'running') {
@@ -101,7 +101,7 @@ function setupProcessHandlers(session: AgentSession) {
       session.status = 'error'
       session.stderr += 'Process timeout (5 minutes)\n'
     }
-  }, 300000)
+  }, 1200000)
 }
 
 // ============================================================================
@@ -125,20 +125,20 @@ app.get('/health', (c) => {
 app.post('/execute/agent', async (c) => {
   try {
     const request = await c.req.json<AgentExecuteRequest>()
-    
+
     // 入力検証
     const required = ['userPrompt', 'aiPrompt', 'userId', 'miniappId']
     const missing = required.filter(field => !request[field as keyof AgentExecuteRequest])
-    
+
     if (missing.length > 0) {
       return c.json({
         success: false,
         error: `Missing required parameters: ${missing.join(', ')}`
       }, 400)
     }
-    
+
     console.log(`[Agent] Starting execution for user ${request.userId}, miniapp ${request.miniappId}`)
-    
+
     // localhost:4000 のヘルスチェック
     console.log('[Agent] Checking frontend server health at localhost:4000...')
     try {
@@ -146,7 +146,7 @@ app.post('/execute/agent', async (c) => {
         method: 'GET',
         signal: AbortSignal.timeout(5000) // 5秒タイムアウト
       })
-      
+
       if (healthResponse.status !== 200) {
         console.error(`[Agent] Frontend server returned status ${healthResponse.status}`)
         return c.json({
@@ -154,7 +154,7 @@ app.post('/execute/agent', async (c) => {
           error: `Frontend server at localhost:4000 is not healthy (status: ${healthResponse.status}). Please ensure the frontend server is running.`
         }, 503)
       }
-      
+
       console.log('[Agent] Frontend server is healthy (status: 200)')
     } catch (healthError) {
       console.error('[Agent] Frontend server health check failed:', healthError)
@@ -163,10 +163,10 @@ app.post('/execute/agent', async (c) => {
         error: 'Frontend server at localhost:4000 is not accessible. Please ensure the frontend server is running.'
       }, 503)
     }
-    
+
     // 非同期実行
     const sessionId = uuidv4()
-    
+
     // コマンド構築 - pnpm execを使用
     const args = [
       'exec',
@@ -177,7 +177,7 @@ app.post('/execute/agent', async (c) => {
       request.userId,
       request.miniappId,
     ]
-    
+
     // オプション引数を追加
     if (request.resume) {
       args.push('--resume')
@@ -185,9 +185,9 @@ app.post('/execute/agent', async (c) => {
     if (request.model) {
       args.push('--model', request.model)
     }
-    
+
     console.log(`[Agent] Starting async execution: pnpm ${args.join(' ')}`)
-    
+
     const childProcess = spawn('pnpm', args, {
       cwd: process.cwd(),  // 現在のディレクトリを使用
       env: {
@@ -198,7 +198,7 @@ app.post('/execute/agent', async (c) => {
       },
       stdio: ['pipe', 'pipe', 'pipe'],
     })
-    
+
     const session: AgentSession = {
       sessionId,
       childProcess,
@@ -209,11 +209,11 @@ app.post('/execute/agent', async (c) => {
       exitCode: null,
       request
     }
-    
+
     // バックグラウンドで出力収集
     setupProcessHandlers(session)
     sessions.set(sessionId, session)
-    
+
     return c.json({
       success: true,
       sessionId,
@@ -222,7 +222,7 @@ app.post('/execute/agent', async (c) => {
     })
   } catch (error) {
     console.error('[Agent] Execution failed:', error)
-    
+
     return c.json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -235,32 +235,32 @@ app.post('/execute/agent', async (c) => {
 app.post('/stop/agent/:sessionId', (c) => {
   const sessionId = c.req.param('sessionId')
   const session = sessions.get(sessionId)
-  
+
   if (!session) {
-    return c.json({ 
+    return c.json({
       success: false,
-      error: 'Session not found' 
+      error: 'Session not found'
     }, 404)
   }
-  
+
   if (session.status !== 'running') {
-    return c.json({ 
+    return c.json({
       success: false,
-      error: `Session is not running (status: ${session.status})` 
+      error: `Session is not running (status: ${session.status})`
     }, 400)
   }
-  
+
   // グレースフルシャットダウン
   session.childProcess.kill('SIGTERM')
   session.status = 'stopped'
-  
+
   // 5秒後に強制終了
   setTimeout(() => {
     if (session.childProcess.exitCode === null) {
       session.childProcess.kill('SIGKILL')
     }
   }, 5000)
-  
+
   return c.json({
     success: true,
     sessionId,
@@ -272,14 +272,14 @@ app.post('/stop/agent/:sessionId', (c) => {
 app.get('/status/agent/:sessionId', (c) => {
   const sessionId = c.req.param('sessionId')
   const session = sessions.get(sessionId)
-  
+
   if (!session) {
-    return c.json({ 
+    return c.json({
       success: false,
-      error: 'Session not found' 
+      error: 'Session not found'
     }, 404)
   }
-  
+
   return c.json({
     success: true,
     sessionId,
@@ -300,19 +300,19 @@ app.get('/logs/agent/:sessionId', async (c) => {
   const sessionId = c.req.param('sessionId')
   const session = sessions.get(sessionId)
   const stream = c.req.query('stream') === 'true'
-  
+
   if (!session) {
-    return c.json({ 
+    return c.json({
       success: false,
-      error: 'Session not found' 
+      error: 'Session not found'
     }, 404)
   }
-  
+
   if (stream) {
     // Server-Sent Events でストリーミング
     return streamSSE(c, async (stream) => {
       let lastPosition = 0
-      
+
       const interval = setInterval(async () => {
         const newLogs = session.stdout.substring(lastPosition)
         if (newLogs) {
@@ -322,12 +322,12 @@ app.get('/logs/agent/:sessionId', async (c) => {
           })
           lastPosition = session.stdout.length
         }
-        
+
         if (session.status !== 'running') {
           await stream.writeSSE({
-            data: JSON.stringify({ 
+            data: JSON.stringify({
               status: session.status,
-              exitCode: session.exitCode 
+              exitCode: session.exitCode
             }),
             event: 'complete'
           })
@@ -335,7 +335,7 @@ app.get('/logs/agent/:sessionId', async (c) => {
           await stream.close()
         }
       }, 100)
-      
+
       // クライアント切断時のクリーンアップ
       stream.onAbort(() => {
         clearInterval(interval)
@@ -365,7 +365,7 @@ app.get('/sessions/agent', (c) => {
     miniappId: s.request.miniappId,
     exitCode: s.exitCode
   }))
-  
+
   return c.json({
     success: true,
     sessions: sessionList,
@@ -377,26 +377,26 @@ app.get('/sessions/agent', (c) => {
 app.delete('/sessions/agent/:sessionId', (c) => {
   const sessionId = c.req.param('sessionId')
   const session = sessions.get(sessionId)
-  
+
   if (!session) {
-    return c.json({ 
+    return c.json({
       success: false,
-      error: 'Session not found' 
+      error: 'Session not found'
     }, 404)
   }
-  
+
   // 実行中の場合は停止
   if (session.status === 'running') {
     session.childProcess.kill('SIGKILL')
   }
-  
+
   // タイムアウトハンドルをクリア
   if (session.timeoutHandle) {
     clearTimeout(session.timeoutHandle)
   }
-  
+
   sessions.delete(sessionId)
-  
+
   return c.json({
     success: true,
     message: `Session ${sessionId} deleted`
@@ -427,7 +427,7 @@ app.notFound((c) => {
 setInterval(() => {
   const now = Date.now()
   let cleanedCount = 0
-  
+
   for (const [id, session] of sessions) {
     if (session.status !== 'running' && now - session.startTime > 30 * 60 * 1000) {
       // タイムアウトハンドルをクリア
@@ -439,7 +439,7 @@ setInterval(() => {
       console.log(`[Cleanup] Removed old session ${id}`)
     }
   }
-  
+
   if (cleanedCount > 0) {
     console.log(`[Cleanup] Removed ${cleanedCount} old sessions`)
   }
@@ -474,7 +474,7 @@ console.log(`[Agent API] - DELETE /sessions/agent/:sessionId`)
 
 const gracefulShutdown = () => {
   console.log('[Agent API] Shutting down gracefully')
-  
+
   // 全実行中セッションを停止
   for (const session of sessions.values()) {
     if (session.status === 'running') {
@@ -486,7 +486,7 @@ const gracefulShutdown = () => {
       clearTimeout(session.timeoutHandle)
     }
   }
-  
+
   // サーバーを閉じる
   server.close(() => {
     console.log('[Agent API] Server closed')
