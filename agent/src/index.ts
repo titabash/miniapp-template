@@ -23,6 +23,7 @@ program
     "claude-code"
   )
   .option("-m, --model <name>", "specify model name (optional)")
+  .option("-d, --development-id <id>", "existing development record ID")
   .parse();
 
 const [userPrompt, aiPrompt, userId, miniAppId] = program.args;
@@ -30,6 +31,7 @@ const options = program.opts();
 const shouldResume = options.resume;
 const agentType = options.agent;
 const modelName = options.model;
+const developmentId = options.developmentId;
 
 // Validate agent type
 if (!getAvailableAgents().includes(agentType)) {
@@ -47,6 +49,7 @@ console.log(`  miniAppId (argv[5]): "${miniAppId}"`);
 console.log(`  --resume flag: ${shouldResume}`);
 console.log(`  --agent: ${agentType}`);
 console.log(`  --model: ${modelName || "default"}`);
+console.log(`  --development-id: ${developmentId || "none"}`);
 console.log("=".repeat(80));
 
 (async () => {
@@ -93,12 +96,19 @@ console.log("=".repeat(80));
       try {
         // Create new development record for this execution
         if (!developmentRecord) {
-          developmentRecord = await createDevelopmentRecord(
-            miniAppId,
-            userId,
-            userPrompt
-          );
-          console.log(`📝 Development record created: ${developmentRecord.id}`);
+          if (developmentId) {
+            // 既存のdevelopment record IDが渡された場合は使用
+            developmentRecord = { id: developmentId };
+            console.log(`📝 Using existing development record: ${developmentRecord.id}`);
+          } else {
+            // IDが渡されない場合は新規作成（後方互換性）
+            developmentRecord = await createDevelopmentRecord(
+              miniAppId,
+              userId,
+              userPrompt
+            );
+            console.log(`📝 Development record created: ${developmentRecord.id}`);
+          }
         }
 
         // Create agent instance

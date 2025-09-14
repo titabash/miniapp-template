@@ -9,6 +9,7 @@ import { logger } from 'hono/logger'
 import { streamSSE } from 'hono/streaming'
 import { v4 as uuidv4 } from 'uuid'
 import { ChildProcess, spawn } from 'child_process'
+import { createDevelopmentRecord, updateDevelopmentStatusToError } from './src/core/database'
 
 // ============================================================================
 // Types and Interfaces
@@ -41,6 +42,7 @@ interface AgentSession {
   exitCode: number | null
   request: AgentExecuteRequest
   timeoutHandle?: NodeJS.Timeout
+  developmentRecordId?: string
 }
 
 // ============================================================================
@@ -76,10 +78,31 @@ function setupProcessHandlers(session: AgentSession) {
     console.log(`[Session ${session.sessionId}] STDERR:`, data.toString().trim())
   })
 
-  childProcess.on('close', (exitCode) => {
+  childProcess.on('close', async (exitCode) => {
     session.exitCode = exitCode || 0
-    session.status = session.status === 'stopped' ? 'stopped' : 'completed'
-    console.log(`[Session ${session.sessionId}] Process exited with code ${exitCode}`)
+
+    // 終了コードが0以外の場合はエラーとして扱う（停止された場合を除く）
+    if (exitCode !== 0 && session.status !== 'stopped') {
+      session.status = 'error'
+      console.error(`[Session ${session.sessionId}] Process exited with error code ${exitCode}`)
+
+      // developmentステータスをERRORに更新
+      if (session.developmentRecordId) {
+        console.log(`[Session ${session.sessionId}] Updating development status to ERROR (exit code: ${exitCode})`)
+        try {
+          await updateDevelopmentStatusToError(
+            { id: session.developmentRecordId },
+            `Process exited with error code ${exitCode}`,
+            session.sessionId
+          )
+        } catch (dbError) {
+          console.error(`[Session ${session.sessionId}] Failed to update development status:`, dbError)
+        }
+      }
+    } else {
+      session.status = session.status === 'stopped' ? 'stopped' : 'completed'
+      console.log(`[Session ${session.sessionId}] Process exited with code ${exitCode}`)
+    }
 
     // タイムアウトハンドルをクリア
     if (session.timeoutHandle) {
@@ -87,21 +110,49 @@ function setupProcessHandlers(session: AgentSession) {
     }
   })
 
-  childProcess.on('error', (error) => {
+  childProcess.on('error', async (error) => {
     session.status = 'error'
     session.stderr += `Process error: ${error.message}\n`
     console.error(`[Session ${session.sessionId}] Process error:`, error)
+
+    // developmentステータスをERRORに更新
+    if (session.developmentRecordId) {
+      console.log(`[Session ${session.sessionId}] Updating development status to ERROR`)
+      try {
+        await updateDevelopmentStatusToError(
+          { id: session.developmentRecordId },
+          `Process error: ${error.message}`,
+          session.sessionId
+        )
+      } catch (dbError) {
+        console.error(`[Session ${session.sessionId}] Failed to update development status:`, dbError)
+      }
+    }
   })
 
   // タイムアウト設定（5分）
-  session.timeoutHandle = setTimeout(() => {
+  session.timeoutHandle = setTimeout(async () => {
     if (session.status === 'running') {
       console.warn(`[Session ${session.sessionId}] Timeout, killing process`)
       childProcess.kill('SIGKILL')
       session.status = 'error'
       session.stderr += 'Process timeout (5 minutes)\n'
+
+      // developmentステータスをERRORに更新
+      if (session.developmentRecordId) {
+        console.log(`[Session ${session.sessionId}] Updating development status to ERROR (timeout)`)
+        try {
+          await updateDevelopmentStatusToError(
+            { id: session.developmentRecordId },
+            'Process timeout (5 minutes)',
+            session.sessionId
+          )
+        } catch (dbError) {
+          console.error(`[Session ${session.sessionId}] Failed to update development status:`, dbError)
+        }
+      }
     }
-  }, 1200000)
+  }, 300000)  // 5分 = 300000ms
 }
 
 // ============================================================================
@@ -167,6 +218,24 @@ app.post('/execute/agent', async (c) => {
     // 非同期実行
     const sessionId = uuidv4()
 
+    // developmentRecordを事前に作成
+    let developmentRecord: any
+    try {
+      console.log('[Agent] Creating development record...')
+      developmentRecord = await createDevelopmentRecord(
+        request.miniappId,
+        request.userId,
+        request.userPrompt
+      )
+      console.log(`[Agent] Development record created: ${developmentRecord.id}`)
+    } catch (dbError) {
+      console.error('[Agent] Failed to create development record:', dbError)
+      return c.json({
+        success: false,
+        error: 'Failed to create development record in database'
+      }, 500)
+    }
+
     // コマンド構築 - pnpm execを使用
     const args = [
       'exec',
@@ -179,6 +248,7 @@ app.post('/execute/agent', async (c) => {
     ]
 
     // オプション引数を追加
+    args.push('--development-id', developmentRecord.id)
     if (request.resume) {
       args.push('--resume')
     }
@@ -207,7 +277,8 @@ app.post('/execute/agent', async (c) => {
       stdout: '',
       stderr: '',
       exitCode: null,
-      request
+      request,
+      developmentRecordId: developmentRecord.id
     }
 
     // バックグラウンドで出力収集
