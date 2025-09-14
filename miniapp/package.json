@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "next dev -p 5173",
     "build": "next build",
-    "build:watch": "next build --watch",
-    "start": "next start -p 8080",
+    "build:watch": "chokidar 'src/**/*.{js,ts,tsx}' --debounce 3000 -c 'next build'",
+    "start": "next start -p 5173",
     "lint": "next lint",
     "preview": "next start -p 8080",
     "tsc": "tsc --noEmit"
