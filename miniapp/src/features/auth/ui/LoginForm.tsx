@@ -38,8 +38,8 @@ export function LoginForm({ auth }: LoginFormProps) {
     try {
       await auth.login(email, password);
       // 成功時は自動的に認証状態が更新されて画面が切り替わる
-    } catch (error: any) {
-      setError(error.message || "ログインに失敗しました");
+    } catch (error) {
+      setError((error as Error).message || "ログインに失敗しました");
     } finally {
       setIsLoading(false);
     }

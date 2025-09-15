@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "next dev -p 5173",
-    "build": "next build",
+    "build": "next build --turbopack",
     "build:watch": "chokidar 'src/**/*.{js,ts,tsx}' --debounce 3000 -c 'next build'",
     "start": "next start -p 5173",
     "lint": "next lint",
@@ -35,6 +35,7 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@eslint/eslintrc": "^3.3.1",
     "@next/eslint-plugin-next": "^15.1.3",
     "@types/node": "^24.0.14",
     "@types/react": "^19.1.8",

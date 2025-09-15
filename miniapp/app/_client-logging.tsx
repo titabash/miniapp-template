@@ -165,7 +165,7 @@ export default function ClientLogging(): null {
     if (typeof window === "undefined") return;
 
     // すでに導入済みなら何もしない
-    const anyWindow = window as any;
+    const anyWindow = window as unknown as { [key: string]: unknown };
     if (anyWindow[FLAG_KEY]) {
       return;
     }
@@ -190,7 +190,7 @@ export default function ClientLogging(): null {
         const fn = uninstallers.pop();
         try {
           fn?.();
-        } catch (e) {
+        } catch {
           // 解除時の例外は握りつぶす
         }
       }
