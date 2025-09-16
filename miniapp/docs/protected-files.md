@@ -46,10 +46,9 @@
     - ⚠️ **変更**: 既存ファイルの修正は慎重に
     - ❌ **削除**: 既存APIファイルの削除は避ける
   - **具体的ファイル**:
-    - `actions/ai.ts` - AI機能の基盤
-    - `actions/openai.ts` - OpenAI統合
-    - `actions/pocketbase.ts` - データベース操作
-    - `lib/` 内の全サーバー側ライブラリ
+    - `fal.server.ts` - FAL AI統合（画像生成等）
+    - `openai.server.ts` - OpenAI統合
+    - `pocketbase.server.ts` - データベース操作
 
 ## ✅ 自由に変更可能なファイル
 
