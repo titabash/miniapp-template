@@ -99,21 +99,42 @@ export function createQueryOptions(
       "mcp__playwright",
     ],
     disallowedTools: [
+      // 認証システム関連（絶対変更禁止）
+      "Edit(**/shared/lib/pocketbase.ts)",
+      "MultiEdit(**/shared/lib/pocketbase.ts)",
+      "Write(**/shared/lib/pocketbase.ts)",
+      "Edit(**/features/auth/model/useAuth.ts)",
+      "MultiEdit(**/features/auth/model/useAuth.ts)",
+      "Write(**/features/auth/model/useAuth.ts)",
+      "Edit(**/features/auth/ui/LoginForm.tsx)",
+      "MultiEdit(**/features/auth/ui/LoginForm.tsx)",
+      "Write(**/features/auth/ui/LoginForm.tsx)",
+      "Edit(**/features/auth/model/validation.ts)",
+      "MultiEdit(**/features/auth/model/validation.ts)",
+      "Write(**/features/auth/model/validation.ts)",
+
+      // レイアウト・プロバイダー関連（慎重に変更）
+      "Edit(**/app/layout.tsx)",
+      "MultiEdit(**/app/layout.tsx)",
+      "Write(**/app/layout.tsx)",
+      "Edit(**/app/providers/auth-provider.tsx)",
+      "MultiEdit(**/app/providers/auth-provider.tsx)",
+      "Write(**/app/providers/auth-provider.tsx)",
+
+      // Server Actions（外部API基盤）- 全体を保護
+      "Edit(**/shared/server/**)",
+      "MultiEdit(**/shared/server/**)",
+      "Write(**/shared/server/**)",
+
+      // 既存の認証関連（広範囲の保護）
       "Edit(**/pocketbase.ts)",
       "MultiEdit(**/pocketbase.ts)",
       "Write(**/pocketbase.ts)",
       "Edit(**/features/auth/**)",
       "MultiEdit(**/features/auth/**)",
       "Write(**/features/auth/**)",
-      "Write(**/App.tsx)",
-      "Edit(**/App.tsx)",
-      "MultiEdit(**/App.tsx)",
-      "Write(**/main.tsx)",
-      "Edit(**/main.tsx)",
-      "MultiEdit(**/main.tsx)",
-      "Edit(**/shared/server/lib/**)",
-      "MultiEdit(**/shared/server/lib/**)",
-      "Write(**/shared/server/lib/**)",
+
+      // 危険なコマンド（削除系）
       "Bash(rm -rf)",           // -rf 全域
       "Bash(rm -r )",           // -r 単独（末尾スペースを意図的に含める例）
       "Bash(rm -R )",           // -R 単独
@@ -123,7 +144,9 @@ export function createQueryOptions(
       "Bash(rm -f ../)",        // 親ディレクトリ配下
       "Bash(rm -f ~)",          // ホーム配下
       "Bash(rm -f * )",         // ワイルドカード（ゆるめのガード）
-      "Bash(rm -f */)",          // ディレクトリワイルドカード
+      "Bash(rm -f */)",         // ディレクトリワイルドカード
+
+      // 開発サーバー関連（実行禁止）
       "Bash(pnpm run dev)",
       "Bash(pnpm run preview)",
       "Bash(pnpm run build:watch)",
