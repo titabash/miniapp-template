@@ -280,6 +280,36 @@ export async function saveMessageToDatabase(
   llmModel?: string,
   userId?: string
 ) {
+  // Early validation of userId
+  if (!userId) {
+    const errorMessage = "userId is required for saveMessageToDatabase";
+
+    // Record error to miniapp_ai_processing table
+    try {
+      await saveErrorToAIProcessing(
+        developmentId,
+        message.session_id,
+        message.type,
+        errorMessage,
+        llmModel,
+        {
+          error_type: "MISSING_USER_ID",
+          message_details: { type: message.type }
+        }
+      );
+    } catch (err) {
+      console.error("Failed to save error to AI processing:", err);
+    }
+
+    console.error("❌ CRITICAL:", errorMessage);
+    console.error("  developmentId:", developmentId);
+    console.error("  llmModel:", llmModel);
+    console.error("  message.type:", message.type);
+    console.error("  Stack trace:", new Error().stack);
+
+    throw new Error(errorMessage);
+  }
+
   let contentText: string | null = null;
   let result: any = null;
   let metadata: any = null;
@@ -485,7 +515,7 @@ export async function updateDevelopmentStatusToCompleted(
     console.log(
       `🚀 Creating git commit for miniapp ${developmentRecord.miniapp_id} v${version}...`
     );
-    const { commitHash, message, hadConflicts } = await executeGitCommitWithConflictResolution(
+    const { commitHash, hadConflicts } = await executeGitCommitWithConflictResolution(
       developmentRecord.miniapp_id
     );
     
@@ -645,6 +675,49 @@ export async function createVersionRecord(
   } catch (error: any) {
     console.error(`❌ Failed to create version record:`, error);
     throw new Error(`Failed to create version record: ${error.message}`);
+  }
+}
+
+// Helper function to save error to miniapp_ai_processing table
+export async function saveErrorToAIProcessing(
+  developmentId: string,
+  sessionId: string | undefined,
+  messageType: string,
+  errorMessage: string,
+  llmModel?: string,
+  metadata?: any
+) {
+  try {
+    const { data, error } = await supabase
+      .from("miniapp_ai_processing")
+      .insert({
+        id: crypto.randomUUID(),
+        development_id: developmentId,
+        session_id: sessionId || "",
+        message_type: messageType,
+        subtype: "error",
+        content_text: errorMessage,
+        is_error: true,
+        llm_model: llmModel || "claude-sonnet-4",
+        metadata: {
+          error_details: errorMessage,
+          timestamp: new Date().toISOString(),
+          ...metadata
+        },
+        created_at: new Date().toISOString()
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Failed to save error to miniapp_ai_processing:", error);
+    } else {
+      console.log(`📝 Error recorded in miniapp_ai_processing: ${data.id}`);
+    }
+
+    return data;
+  } catch (err) {
+    console.error("Exception saving error to AI processing:", err);
   }
 }
 

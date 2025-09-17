@@ -6,6 +6,7 @@ import type { DevelopmentRecord } from "../../core/types";
 import { BuildError } from "../../core/types";
 import {
   saveMessageToDatabase,
+  saveErrorToAIProcessing,
   updateDevelopmentStatusToCompleted,
   updateDevelopmentStatusToError,
 } from "../../core/database";
@@ -239,6 +240,12 @@ export async function executeClaudeCode(
       // Save message to database
       if (developmentRecord) {
         try {
+          // Debug: Check developmentRecord and user_id
+          if (!developmentRecord.user_id) {
+            console.error("❌ CRITICAL: developmentRecord.user_id is missing!");
+            console.error("  developmentRecord:", JSON.stringify(developmentRecord, null, 2));
+          }
+
           await saveMessageToDatabase(
             message,
             developmentRecord.id,
@@ -248,41 +255,61 @@ export async function executeClaudeCode(
           console.log("✅ Debug - Message saved to database successfully");
         } catch (dbError: any) {
           console.error(
-            "❌ Debug - Failed to save message to database:",
+            "❌ Critical - Failed to save message to database:",
             dbError
           );
 
-          // Handle credit insufficient error specifically
+          let errorMessage = "Database error during message processing";
+          let errorType = "DATABASE_ERROR";
+
           if (dbError.name === "InsufficientCreditError") {
-            console.error(`💳 Credit insufficient: ${dbError.message}`);
-            console.error(`💰 Current balance: $${dbError.currentBalance}`);
-            console.error(`💸 Required cost: $${dbError.requiredCost}`);
-
-            // Update development status to ERROR
-            try {
-              await updateDevelopmentStatusToError(
-                developmentRecord,
-                `Credit insufficient. Current: $${dbError.currentBalance}, Required: $${dbError.requiredCost}`,
-                sessionId
-              );
-              console.log(
-                "📝 Development status updated to ERROR due to insufficient credit"
-              );
-            } catch (updateError) {
-              console.error(
-                "❌ Failed to update development status to ERROR:",
-                updateError
-              );
-            }
-
-            // Re-throw the error to stop processing
-            throw dbError;
+            errorMessage = `Credit insufficient. Current: $${dbError.currentBalance}, Required: $${dbError.requiredCost}`;
+            errorType = "INSUFFICIENT_CREDIT";
+            console.error(`💳 ${errorMessage}`);
+          } else if (dbError.message?.includes("userId is required")) {
+            errorMessage = "Critical error: User ID is missing";
+            errorType = "MISSING_USER_ID";
+          } else {
+            errorMessage = `Database error: ${dbError.message || "Unknown error"}`;
           }
 
-          // For other database errors, continue processing but log the error
-          console.error(
-            "⚠️ Continuing processing despite database save failure"
-          );
+          // Record error to miniapp_ai_processing table
+          try {
+            await saveErrorToAIProcessing(
+              developmentRecord.id,
+              sessionId,
+              message.type,
+              errorMessage,
+              queryOptions.model,
+              {
+                error_type: errorType,
+                original_error: dbError.message,
+                stack_trace: dbError.stack
+              }
+            );
+          } catch (processingError) {
+            console.error("Failed to save to miniapp_ai_processing:", processingError);
+          }
+
+          // Update development status to ERROR
+          try {
+            await updateDevelopmentStatusToError(
+              developmentRecord,
+              errorMessage,
+              sessionId
+            );
+            console.log(
+              "📝 Development status updated to ERROR"
+            );
+          } catch (updateError) {
+            console.error(
+              "❌ Failed to update development status to ERROR:",
+              updateError
+            );
+          }
+
+          // Always stop processing on any database error
+          throw dbError;
         }
       }
     }
