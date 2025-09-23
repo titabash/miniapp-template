@@ -80,9 +80,9 @@ async function ensureGitRepo(repoPath: string): Promise<void> {
 
 /**
  * リモートリポジトリの設定と認証情報の管理
- * 1. Northflankエンドポイントが既に設定されている場合はそのまま使用
- * 2. miniappsテーブルからgit_urlを取得し、無い場合はエラー
- * 3. git_urlがある場合はGitea認証情報をデータベースから取得してoriginに設定
+ * 1. upstreamがない場合はGitHubテンプレートリポジトリを設定
+ * 2. originがgithub.com/gitea:3000/未設定の場合は、miniappsテーブルのgit_urlまたはデフォルト値で設定
+ * 3. originが正式なgit_url（gitea:3000でもgithub.comでもない）の場合はスキップ
  */
 async function ensureRemote(
   repoPath: string,
@@ -92,95 +92,105 @@ async function ensureRemote(
     // 既存のリモートをチェック
     const { stdout } = await execGitCommand("remote -v", repoPath);
 
-    // 既にNorthflankエンドポイントが設定されているかチェック
-    const hasNorthflankOrigin = stdout.includes("origin") &&
-                               (stdout.includes("northflank.app") || stdout.includes("git.railway.app"));
-
-    if (hasNorthflankOrigin) {
-      console.log(`📡 Northflank endpoint already configured as origin, skipping Gitea setup`);
-      return true;
-    }
-
-    // upstreamにGitHubテンプレートリポジトリが設定されているかチェック
-    const hasUpstream = stdout.includes("upstream") &&
-                       stdout.includes("https://github.com/");
-
-    if (!hasUpstream) {
-      console.log(`ℹ️ No upstream template repository configured, skip pushing`);
-      return false;
-    }
-
-    // Supabaseクライアントが利用可能かチェック
-    if (!supabase) {
-      console.error(`❌ Supabase client not available, cannot setup Git remote`);
-      return false;
-    }
-
-    try {
-      console.log(`🔐 Setting up Git remote for miniapp ${miniAppId}...`);
-
-      // miniappsテーブルからgit_urlを取得（型エラー回避のためas anyを使用）
-      const { data: miniapp, error: miniappError } = await (supabase as any)
-        .from("miniapps")
-        .select("git_url")
-        .eq("id", miniAppId)
-        .single();
-
-      if (miniappError) {
-        console.error(`❌ Failed to get miniapp data: ${miniappError.message}`);
-        return false;
-      }
-
-      // git_urlの存在チェック
-      if (!miniapp?.git_url) {
-        console.error(`❌ Git URL is not configured for this miniapp (${miniAppId})`);
-        console.error(`   Please ensure the miniapp has been properly set up with a Git service`);
-        return false;
-      }
-
-      const giteaUrl = miniapp.git_url;
-      console.log(`📦 Found Git URL for miniapp: ${giteaUrl}`);
-
-      // Git認証情報の存在確認
-      const authExists = await checkMiniAppGitAuthExists(supabase, miniAppId);
-
-      if (!authExists) {
-        console.error(`❌ No Git authentication found for miniapp ${miniAppId}`);
-        console.error(`   Cannot setup Git remote without authentication credentials`);
-        return false;
-      }
-
-      // 認証情報を取得
-      const gitCredentials = await getMiniAppGitCredentials(supabase, miniAppId);
-
-      // 認証情報付きのClone URLを構築
-      const cloneUrlWithAuth = buildGiteaCloneUrl(
-        giteaUrl,
-        gitCredentials.username,
-        gitCredentials.password,
-        gitCredentials.repoName
+    // upstreamがない場合は追加
+    if (!stdout.includes("upstream")) {
+      console.log(`📝 Adding upstream template repository...`);
+      await execGitCommand(
+        `remote add upstream https://github.com/titabash/miniapp-template.git`,
+        repoPath
       );
+      console.log(`✅ Upstream template repository added`);
+    }
 
-      // originリモートを設定/更新（認証情報を含むため、詳細ログは避ける）
-      if (stdout.includes("origin")) {
-        console.log(`🔄 Updating origin remote to Gitea repository...`);
-        // execGitCommandのログ出力を抑制するため、直接execAsyncを使用
-        await execAsync(`git remote set-url origin "${cloneUrlWithAuth}"`, { cwd: repoPath });
-      } else {
-        console.log(`➕ Adding origin remote for Gitea repository...`);
-        // execGitCommandのログ出力を抑制するため、直接execAsyncを使用
-        await execAsync(`git remote add origin "${cloneUrlWithAuth}"`, { cwd: repoPath });
+    // originが以下の場合は必ず設定/更新：
+    // - 未設定
+    // - gitea:3000（デフォルト値）
+    // - github.com（テンプレートリポジトリ - pushの誤爆防止）
+    const hasOrigin = stdout.includes("origin");
+    const originNeedsUpdate = !hasOrigin ||
+                             stdout.includes("gitea:3000") ||
+                             stdout.includes("github.com");
+
+    if (originNeedsUpdate) {
+      // Supabaseクライアントが利用可能かチェック
+      if (!supabase) {
+        console.error(`❌ Supabase client not available, cannot setup Git remote`);
+        return false;
       }
 
-      // セキュリティのため、完全なURLはログに出力しない
-      const urlParts = new URL(giteaUrl);
-      console.log(`✅ Origin remote configured for Gitea: ${urlParts.origin}/${gitCredentials.username}/${gitCredentials.repoName}`);
+      try {
+        console.log(`🔐 Setting up Git remote for miniapp ${miniAppId}...`);
 
-      return true;
-    } catch (gitAuthError) {
-      console.error(`❌ Failed to setup Gitea remote: ${gitAuthError}`);
-      return false;
+        if (stdout.includes("github.com") && hasOrigin) {
+          console.warn(`⚠️  Origin points to GitHub template - updating to prevent accidental pushes`);
+        }
+
+        // miniappsテーブルからgit_urlを取得（型エラー回避のためas anyを使用）
+        const { data: miniapp, error: miniappError } = await (supabase as any)
+          .from("miniapps")
+          .select("git_url")
+          .eq("id", miniAppId)
+          .single();
+
+        if (miniappError) {
+          console.error(`❌ Failed to get miniapp data: ${miniappError.message}`);
+          return false;
+        }
+
+        // git_urlの存在チェック
+        const giteaUrl = miniapp?.git_url ?? "http://gitea:3000";
+
+        if (!miniapp?.git_url) {
+          console.warn(`⚠️  Git URL not configured for miniapp (${miniAppId}), using default: ${giteaUrl}`);
+          console.warn(`   This will be updated when git_url is properly configured`);
+        } else {
+          console.log(`📦 Using Git URL from database: ${giteaUrl}`);
+        }
+
+        // Git認証情報の存在確認
+        const authExists = await checkMiniAppGitAuthExists(supabase, miniAppId);
+
+        if (!authExists) {
+          console.error(`❌ No Git authentication found for miniapp ${miniAppId}`);
+          console.error(`   Cannot setup Git remote without authentication credentials`);
+          return false;
+        }
+
+        // 認証情報を取得
+        const gitCredentials = await getMiniAppGitCredentials(supabase, miniAppId);
+
+        // 認証情報付きのClone URLを構築
+        const cloneUrlWithAuth = buildGiteaCloneUrl(
+          giteaUrl,
+          gitCredentials.username,
+          gitCredentials.password,
+          gitCredentials.repoName
+        );
+
+        // originリモートを設定/更新（認証情報を含むため、詳細ログは避ける）
+        if (hasOrigin) {
+          console.log(`🔄 Updating origin remote...`);
+          // execGitCommandのログ出力を抑制するため、直接execAsyncを使用
+          await execAsync(`git remote set-url origin "${cloneUrlWithAuth}"`, { cwd: repoPath });
+        } else {
+          console.log(`➕ Adding origin remote...`);
+          // execGitCommandのログ出力を抑制するため、直接execAsyncを使用
+          await execAsync(`git remote add origin "${cloneUrlWithAuth}"`, { cwd: repoPath });
+        }
+
+        // セキュリティのため、完全なURLはログに出力しない
+        const urlParts = new URL(giteaUrl);
+        console.log(`✅ Origin remote configured: ${urlParts.origin}/${gitCredentials.username}/${gitCredentials.repoName}`);
+
+      } catch (gitAuthError) {
+        console.error(`❌ Failed to setup Git remote: ${gitAuthError}`);
+        return false;
+      }
+    } else {
+      // originが正式なgit_url（gitea:3000でもgithub.comでもない）の場合はスキップ
+      console.log(`✅ Origin remote already properly configured, skipping update`);
     }
+    return true;
   } catch (error) {
     console.error(`⚠️ Failed to check/setup remote: ${error}`);
     return false;
@@ -445,7 +455,7 @@ export async function executeGitCommitWithConflictResolution(
   } catch (error: any) {
     console.error("❌ Git commit failed:", error);
     console.error("⚠️ Returning error status but not throwing");
-    
+
     // Return error status instead of throwing
     return {
       commitHash: null,
@@ -496,7 +506,7 @@ export async function executeVersionedRcloneCopy(
 
   // Git commitを実行
   const result = await executeGitCommit(miniAppId);
-  
+
   // エラーがあってもパスを返す（commitHashがnullの場合は代替値を使用）
   const hashOrFallback = result.commitHash || "no-commit";
 
