@@ -28,13 +28,17 @@ export function createQueryOptions(
     `🔍 createQueryOptions - Using effective model: "${effectiveModel}"`
   );
 
+  // 環境変数からcwdを取得（デフォルト: "/app/miniapp"）
+  const cwd = process.env.CLAUDE_CODE_CWD || "/app/miniapp";
+  console.log(`🔍 createQueryOptions - Using cwd: "${cwd}"`);
+
   const options: Options = {
     maxTurns: 50,
     model: effectiveModel, // Use litellm model_name (not the actual model name)
     customSystemPrompt:
       "You are an exceptionally skilled and experienced React + TypeScript + PocketBase developer with deep expertise in modern web development. You excel at building elegant, minimal apps with clean, production-ready code. You prioritize simplicity, maintainability, and fewer files while delivering robust functionality. Your solutions are always well-architected and follow best practices.",
     appendSystemPrompt: "You are using the PocketBase MCP Server.",
-    cwd: "/app/miniapp",
+    cwd: cwd,
     permissionMode: "acceptEdits",
     pathToClaudeCodeExecutable: "/toolbox/agent/node_modules/@anthropic-ai/claude-code/cli.js",
     mcpServers: {
