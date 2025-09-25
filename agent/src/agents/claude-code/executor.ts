@@ -50,7 +50,7 @@ export function createQueryOptions(
           POCKETBASE_URL: "http://127.0.0.1:8090",
           POCKETBASE_ADMIN_EMAIL: "admin@example.com",
           POCKETBASE_ADMIN_PASSWORD: "mypassword123",
-          POCKETBASE_DATA_DIR: "/pb/pb_data",
+          POCKETBASE_DATA_DIR: "/vercel/sandbox/pb/pb_data",
         },
       },
       magicuidesign: {
