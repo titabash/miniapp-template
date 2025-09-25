@@ -26,17 +26,19 @@ export function createQueryOptions(
   let effectiveModel: string;
   const anthropicBaseUrl = process.env.ANTHROPIC_BASE_URL;
 
-  if (anthropicBaseUrl === "http://127.0.0.1:4000") {
-    // LiteLLMプロキシ使用時は渡されたmodelを優先、なければデフォルト
-    effectiveModel = model || "claude-sonnet-4";
-    console.log(`🔍 createQueryOptions - Using LiteLLM proxy mode`);
-  } else {
-    // 通常のAnthropic API使用時は常にsonnet
-    effectiveModel = "sonnet";
-    if (model && model !== "sonnet") {
-      console.log(`⚠️ createQueryOptions - Model "${model}" was requested but overridden to sonnet (Direct API mode)`);
-    }
-  }
+  // if (anthropicBaseUrl === "http://127.0.0.1:4000") {
+  //   // LiteLLMプロキシ使用時は渡されたmodelを優先、なければデフォルト
+  //   effectiveModel = model || "claude-sonnet-4";
+  //   console.log(`🔍 createQueryOptions - Using LiteLLM proxy mode`);
+  // } else {
+  //   // 通常のAnthropic API使用時は常にsonnet
+  //   effectiveModel = "sonnet";
+  //   if (model && model !== "sonnet") {
+  //     console.log(`⚠️ createQueryOptions - Model "${model}" was requested but overridden to sonnet (Direct API mode)`);
+  //   }
+  // }
+
+  effectiveModel = model || "claude-sonnet-4";
 
   console.log(
     `🔍 createQueryOptions - Using effective model: "${effectiveModel}"`
