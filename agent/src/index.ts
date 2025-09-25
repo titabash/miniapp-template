@@ -3,6 +3,7 @@ import {
   createDevelopmentRecord,
   updateDevelopmentStatusToError,
   getPreviousSessionId,
+  getDevelopmentRecord,
 } from "./core/database";
 import { createAgent, getAvailableAgents } from "./core/agent-factory";
 
@@ -97,9 +98,10 @@ console.log("=".repeat(80));
         // Create new development record for this execution
         if (!developmentRecord) {
           if (developmentId) {
-            // 既存のdevelopment record IDが渡された場合は使用
-            developmentRecord = { id: developmentId };
+            // 既存のdevelopment record IDが渡された場合は完全なレコードを取得
+            developmentRecord = await getDevelopmentRecord(developmentId);
             console.log(`📝 Using existing development record: ${developmentRecord.id}`);
+            console.log(`📝 User ID from record: ${developmentRecord.user_id}`);
           } else {
             // IDが渡されない場合は新規作成（後方互換性）
             developmentRecord = await createDevelopmentRecord(

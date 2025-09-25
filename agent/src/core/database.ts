@@ -678,6 +678,28 @@ export async function createVersionRecord(
   }
 }
 
+// Helper function to get existing development record by ID
+export async function getDevelopmentRecord(
+  developmentId: string
+): Promise<DevelopmentRecord> {
+  const { data, error } = await supabase
+    .from("miniapp_development")
+    .select("*")
+    .eq("id", developmentId)
+    .single();
+
+  if (error) {
+    console.error("Error fetching development record:", error);
+    throw error;
+  }
+
+  if (!data) {
+    throw new Error(`Development record not found: ${developmentId}`);
+  }
+
+  return data;
+}
+
 // Helper function to save error to miniapp_ai_processing table
 export async function saveErrorToAIProcessing(
   developmentId: string,
