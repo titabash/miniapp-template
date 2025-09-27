@@ -301,7 +301,7 @@ export async function executeGitCommitWithConflictResolution(
   error?: string;
 }> {
   console.log(
-    `🚀 Starting git commit with conflict resolution for miniapp ${miniAppId}...`
+    `🚀 Starting git commit and push for miniapp ${miniAppId}...`
   );
 
   try {
@@ -317,36 +317,6 @@ export async function executeGitCommitWithConflictResolution(
     // Gitリポジトリの初期化
     await ensureGitRepo(repoPath);
 
-    // リモートの設定とGitea認証情報の管理
-    const hasRemote = await ensureRemote(repoPath, miniAppId);
-
-    // リモートから最新を取得（リモートがある場合）
-    if (hasRemote) {
-      try {
-        console.log("📥 Fetching latest from remote...");
-        await execGitCommand("fetch origin main", repoPath);
-      } catch (error) {
-        console.log("ℹ️ Could not fetch from remote (may not exist yet)");
-      }
-    }
-
-    // 現在のブランチを取得
-    const { stdout: currentBranch } = await execGitCommand(
-      "rev-parse --abbrev-ref HEAD",
-      repoPath
-    );
-    const isMainBranch = currentBranch.trim() === "main" || currentBranch.trim() === "master";
-
-    // mainブランチが存在しない場合は作成
-    if (!isMainBranch) {
-      try {
-        await execGitCommand("checkout -b main", repoPath);
-      } catch (error) {
-        // すでにmainブランチが存在する場合はチェックアウト
-        await execGitCommand("checkout main", repoPath);
-      }
-    }
-
     // PocketBaseコレクション情報を取得して保存（Git add前）
     console.log("📦 Fetching PocketBase collections before Git commit...");
     await fetchAndSaveCollections();
@@ -356,13 +326,10 @@ export async function executeGitCommitWithConflictResolution(
 
     // コミットの作成（変更がある場合のみ）
     let commitHash = "";
-    let commitMessage = "";
-    let hadConflicts = false;
+    const timestamp = new Date().toISOString();
+    const commitMessage = `Update miniapp ${miniAppId} - ${timestamp}`;
 
     try {
-      const timestamp = new Date().toISOString();
-      commitMessage = `Update miniapp ${miniAppId} - ${timestamp}`;
-
       await execGitCommand(
         `commit -m "${commitMessage}"`,
         repoPath
@@ -377,52 +344,6 @@ export async function executeGitCommitWithConflictResolution(
       }
     }
 
-    // リモートからプル（マージ）を試行
-    if (hasRemote) {
-      try {
-        console.log("📥 Pulling from remote...");
-        await execGitCommand("pull origin main --no-rebase", repoPath);
-        console.log("✅ Successfully pulled from remote");
-      } catch (pullError: any) {
-        if (pullError.message.includes("CONFLICT")) {
-          console.log("⚠️ Merge conflicts detected!");
-          hadConflicts = true;
-
-          // コンフリクトファイルを取得
-          const conflictedFiles = await getConflictedFiles(repoPath);
-          console.log(`📝 Conflicted files: ${conflictedFiles.join(', ')}`);
-
-          if (conflictedFiles.length > 0) {
-            // AIでコンフリクト解消を試行
-            const resolved = await resolveConflictsWithAI(repoPath, conflictedFiles);
-
-            if (resolved) {
-              // 解消したファイルをステージング
-              await execGitCommand("add .", repoPath);
-
-              // コンフリクト解消のコミット
-              const conflictMessage = `Resolved merge conflicts for miniapp ${miniAppId}`;
-              await execGitCommand(
-                `commit -m "${conflictMessage}"`,
-                repoPath
-              );
-
-              console.log("✅ Conflicts resolved and committed");
-              commitMessage = conflictMessage;
-            } else {
-              // AI解消が失敗した場合、マージを中止
-              await execGitCommand("merge --abort", repoPath);
-              throw new Error("Failed to resolve conflicts automatically");
-            }
-          }
-        } else if (pullError.message.includes("no tracking information")) {
-          console.log("ℹ️ No remote branch to pull from yet");
-        } else {
-          throw pullError;
-        }
-      }
-    }
-
     // 最終的なコミットハッシュを取得
     const { stdout: hash } = await execGitCommand(
       "rev-parse HEAD",
@@ -430,16 +351,13 @@ export async function executeGitCommitWithConflictResolution(
     );
     commitHash = hash.trim();
 
-    // リモートへのプッシュ（設定されている場合）
-    if (hasRemote && commitHash) {
-      try {
-        // mainブランチをプッシュ
-        await execGitCommand("push origin main", repoPath);
-        console.log(`📤 Pushed to remote`);
-      } catch (error) {
-        console.error(`⚠️ Failed to push to remote: ${error}`);
-        console.log(`ℹ️ Changes are committed locally`);
-      }
+    // リモートへのプッシュ
+    try {
+      await execGitCommand("push origin main", repoPath);
+      console.log(`📤 Pushed to remote`);
+    } catch (error) {
+      console.error(`⚠️ Failed to push to remote: ${error}`);
+      console.log(`ℹ️ Changes are committed locally`);
     }
 
     console.log(
@@ -449,7 +367,7 @@ export async function executeGitCommitWithConflictResolution(
     return {
       commitHash,
       message: commitMessage,
-      hadConflicts,
+      hadConflicts: false,
       success: true
     };
   } catch (error: any) {
