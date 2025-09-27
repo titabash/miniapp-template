@@ -167,7 +167,7 @@ export async function sendChatMessageAction(content: string, userId: string) {
   // 2. AI処理（shared層を利用）
   const openai = await createOpenAIInstance();
   const response = await openai.chat.completions.create({
-    model: "gpt-4",
+    model: "gpt-5",
     messages: [{ role: "user", content }]
   });
 

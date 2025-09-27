@@ -65,7 +65,7 @@ export const researchAgent = new Agent({
     - 分析結果を構造化して提供する
     - 信頼できるソースのみを使用する
   `,
-  model: openai("gpt-4o"),
+  model: openai("gpt-5"),
 });
 ```
 
@@ -88,7 +88,7 @@ const searchTool = createTool({
 export const researchAgentWithTools = new Agent({
   name: "research-agent-with-tools",
   instructions: "ツールを使用してリサーチを行うエージェント",
-  model: openai("gpt-4o"),
+  model: openai("gpt-5"),
   tools: {
     webSearch: searchTool,
   },
@@ -102,7 +102,7 @@ export const comprehensiveAgent = new Agent({
   name: "comprehensive-agent",
   description: "複合的なタスクを実行するエージェント",
   instructions: "ワークフローとツールを組み合わせて複雑なタスクを実行",
-  model: openai("gpt-4o"),
+  model: openai("gpt-5"),
   tools: {
     searchTool,
   },
