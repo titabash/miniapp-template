@@ -1,5 +1,6 @@
 # DESIGN LAYOUT Rule
-*shadcn/ui + Tailwind CSS 4 対応版*
+
+_shadcn/ui + Tailwind CSS 4 対応版_
 
 ## 概要
 
@@ -32,26 +33,30 @@ SNSやコミュニティ系Webサービスにおける現代的なレスポン�
 ## レイアウトパターン
 
 ### 1. Feed-First Single Column + Bottom Navigation
+
 **対象画面幅：< 600px（モバイル）**
 
 #### 構成要素
+
 - **Sticky Top Bar**：検索・通知機能
 - **主フィード**：コンテンツ表示領域
 - **Bottom Navigation**：3-5の主要機能へのアクセス
 - **FAB（Floating Action Button）**：新規投稿
 
 #### 設計根拠
+
 - 親指可動域にトップレベル機能を配置し最速導線を実現
 - Material Designガイドラインに準拠（3-5項目が適量）
 - モバイルファーストの基本レイアウト
 
 #### shadcn/ui実装例
+
 ```tsx
 // src/shared/ui/mobile-layout.tsx
-import { Button } from "@/shared/ui/button"
-import { pb } from "@/shared/lib/pocketbase"
-import { Home, Search, Bell, User, Plus } from "lucide-react"
-import { useEffect, useState } from "react"
+import { Button } from '@/shared/ui/button'
+import { pb } from '@/shared/lib/pocketbase'
+import { Home, Search, Bell, User, Plus } from 'lucide-react'
+import { useEffect, useState } from 'react'
 
 export function MobileLayout({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState(pb.authStore.model)
@@ -66,7 +71,7 @@ export function MobileLayout({ children }: { children: React.ReactNode }) {
     // リアルタイム通知数の監視
     pb.collection('notifications').subscribe('*', (e) => {
       if (e.action === 'create' && e.record.user === user?.id) {
-        setNotifications(prev => prev + 1)
+        setNotifications((prev) => prev + 1)
       }
     })
 
@@ -88,7 +93,7 @@ export function MobileLayout({ children }: { children: React.ReactNode }) {
           <Button variant="ghost" size="icon" className="relative">
             <Bell className="h-5 w-5" />
             {notifications > 0 && (
-              <span className="absolute -top-1 -right-1 h-4 w-4 text-xs bg-red-500 text-white rounded-full flex items-center justify-center">
+              <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-xs text-white">
                 {notifications}
               </span>
             )}
@@ -97,33 +102,51 @@ export function MobileLayout({ children }: { children: React.ReactNode }) {
       </header>
 
       {/* Main Feed */}
-      <main className="flex-1 overflow-y-auto">
-        {children}
-      </main>
+      <main className="flex-1 overflow-y-auto">{children}</main>
 
       {/* Bottom Navigation with PocketBase integration */}
       <nav className="border-t bg-background">
         <div className="flex items-center justify-around py-2">
-          <Button variant="ghost" size="icon" className="h-12 w-12 touch-target">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="touch-target h-12 w-12"
+          >
             <Home className="h-6 w-6" />
           </Button>
-          <Button variant="ghost" size="icon" className="h-12 w-12 touch-target">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="touch-target h-12 w-12"
+          >
             <Search className="h-6 w-6" />
           </Button>
-          <Button size="icon" className="h-12 w-12 rounded-full touch-target">
+          <Button size="icon" className="touch-target h-12 w-12 rounded-full">
             <Plus className="h-6 w-6" />
           </Button>
-          <Button variant="ghost" size="icon" className="h-12 w-12 touch-target relative">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="touch-target relative h-12 w-12"
+          >
             <Bell className="h-6 w-6" />
             {notifications > 0 && (
-              <span className="absolute -top-1 -right-1 h-4 w-4 text-xs bg-red-500 text-white rounded-full flex items-center justify-center">
+              <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-xs text-white">
                 {notifications > 9 ? '9+' : notifications}
               </span>
             )}
           </Button>
-          <Button variant="ghost" size="icon" className="h-12 w-12 touch-target">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="touch-target h-12 w-12"
+          >
             {user?.avatar ? (
-              <img src={pb.files.getUrl(user, user.avatar)} alt="Profile" className="h-6 w-6 rounded-full" />
+              <img
+                src={pb.files.getUrl(user, user.avatar)}
+                alt="Profile"
+                className="h-6 w-6 rounded-full"
+              />
             ) : (
               <User className="h-6 w-6" />
             )}
@@ -136,17 +159,18 @@ export function MobileLayout({ children }: { children: React.ReactNode }) {
 ```
 
 #### Tailwind CSS 4 設定
+
 ```css
 /* src/app/globals.css */
 @layer base {
   .mobile-nav-item {
     @apply flex h-12 w-12 items-center justify-center rounded-lg transition-colors hover:bg-accent;
   }
-  
+
   .touch-target {
     @apply min-h-[44px] min-w-[44px] p-2;
   }
-  
+
   /* PocketBaseリアルタイム更新アニメーション */
   .realtime-update {
     @apply animate-pulse duration-500;
@@ -157,35 +181,40 @@ export function MobileLayout({ children }: { children: React.ReactNode }) {
 ---
 
 ### 2. Two-Pane (Master-Detail) / Supporting-Pane
+
 **対象画面幅：600-960px（タブレット・折りたたみデバイス）**
 
 #### 構成要素
+
 - **Navigation Rail**：固定アイコン列（3-7項目）
 - **メインフィード**：コンテンツ表示領域
 - **サブペイン**：スレッド詳細・プロフィール表示
 
 #### 設計根拠
+
 - Android ComposeのSupportingPaneScaffoldが想定する寸法帯
 - 画面の横幅を効率的に活用
 - タブレット特有の使用パターンに最適化
 
 #### 転換ロジック
+
 - 600px未満：Navigation Rail → Drawer、サブペイン → モーダル画面
 - 960px以上：3カラムレイアウトへ移行
 
 #### shadcn/ui実装例
+
 ```tsx
 // src/shared/ui/two-pane-layout.tsx
-import { Button } from "@/shared/ui/button"
-import { ScrollArea } from "@/shared/ui/scroll-area"
-import { Separator } from "@/shared/ui/separator"
-import { pb } from "@/shared/lib/pocketbase"
-import { Home, Search, Bell, User, MessageSquare, Settings } from "lucide-react"
-import { useEffect, useState } from "react"
+import { Button } from '@/shared/ui/button'
+import { ScrollArea } from '@/shared/ui/scroll-area'
+import { Separator } from '@/shared/ui/separator'
+import { pb } from '@/shared/lib/pocketbase'
+import { Home, Search, Bell, User, MessageSquare, Settings } from 'lucide-react'
+import { useEffect, useState } from 'react'
 
 export function TwoPaneLayout({
   children,
-  sidePanel
+  sidePanel,
 }: {
   children: React.ReactNode
   sidePanel?: React.ReactNode
@@ -197,10 +226,10 @@ export function TwoPaneLayout({
     // PocketBase接続状態の監視
     const handleOnline = () => setIsOnline(true)
     const handleOffline = () => setIsOnline(false)
-    
+
     window.addEventListener('online', handleOnline)
     window.addEventListener('offline', handleOffline)
-    
+
     return () => {
       window.removeEventListener('online', handleOnline)
       window.removeEventListener('offline', handleOffline)
@@ -208,10 +237,10 @@ export function TwoPaneLayout({
   }, [])
 
   return (
-    <div className="hidden md:grid md:grid-cols-[80px_1fr] lg:grid-cols-[80px_1fr_320px] h-screen relative">
+    <div className="relative hidden h-screen md:grid md:grid-cols-[80px_1fr] lg:grid-cols-[80px_1fr_320px]">
       {/* オフラインインジケータ */}
       {!isOnline && (
-        <div className="absolute top-0 left-0 right-0 bg-yellow-500 text-white text-center py-1 text-sm z-50">
+        <div className="absolute left-0 right-0 top-0 z-50 bg-yellow-500 py-1 text-center text-sm text-white">
           オフラインモード
         </div>
       )}
@@ -243,17 +272,13 @@ export function TwoPaneLayout({
       </aside>
 
       {/* Main Feed */}
-      <main className="overflow-y-auto">
-        {children}
-      </main>
+      <main className="overflow-y-auto">{children}</main>
 
       {/* Supporting Pane (Desktop only) */}
       {sidePanel && (
-        <aside className="hidden lg:block border-l bg-muted/50">
+        <aside className="hidden border-l bg-muted/50 lg:block">
           <ScrollArea className="h-full">
-            <div className="p-4">
-              {sidePanel}
-            </div>
+            <div className="p-4">{sidePanel}</div>
           </ScrollArea>
         </aside>
       )}
@@ -263,6 +288,7 @@ export function TwoPaneLayout({
 ```
 
 #### Tailwind CSS 4 コンテナクエリ活用
+
 ```css
 @layer components {
   .nav-rail {
@@ -281,37 +307,49 @@ export function TwoPaneLayout({
 ---
 
 ### 3. Three-Column (Collapsible Holy-Grail Lite)
+
 **対象画面幅：≥ 960px（デスクトップ）**
 
 #### 構成要素
+
 - **左サイドバー**：メインナビゲーション
 - **中央カラム**：メインフィード
 - **右サイドバー**：トレンド・広告・推奨コンテンツ
 
 #### 設計根拠
+
 - Twitter(X)、LinkedInなど主要SNSが採用する標準パターン
 - 大画面の情報表示能力を最大活用
 - 段階的な表示制御でモバイル互換性を保持
 
 #### shadcn/ui実装例
+
 ```tsx
 // src/shared/ui/three-column-layout.tsx
-import { Button } from "@/shared/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/card"
-import { ScrollArea } from "@/shared/ui/scroll-area"
-import { Separator } from "@/shared/ui/separator"
-import { Badge } from "@/shared/ui/badge"
-import { pb } from "@/shared/lib/pocketbase"
-import { TrendingUp, Hash, Users, Home, Search, Bell, MessageSquare } from "lucide-react"
-import { useEffect, useState } from "react"
+import { Button } from '@/shared/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card'
+import { ScrollArea } from '@/shared/ui/scroll-area'
+import { Separator } from '@/shared/ui/separator'
+import { Badge } from '@/shared/ui/badge'
+import { pb } from '@/shared/lib/pocketbase'
+import {
+  TrendingUp,
+  Hash,
+  Users,
+  Home,
+  Search,
+  Bell,
+  MessageSquare,
+} from 'lucide-react'
+import { useEffect, useState } from 'react'
 
 export function ThreeColumnLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="hidden xl:grid xl:grid-cols-[280px_1fr_320px] h-screen max-w-7xl mx-auto gap-6">
+    <div className="mx-auto hidden h-screen max-w-7xl gap-6 xl:grid xl:grid-cols-[280px_1fr_320px]">
       {/* Left Sidebar */}
       <aside className="border-r">
         <ScrollArea className="h-full">
-          <div className="p-4 space-y-4">
+          <div className="space-y-4 p-4">
             <nav className="space-y-2">
               <Button variant="ghost" className="w-full justify-start">
                 <Home className="mr-3 h-5 w-5" />
@@ -338,11 +376,19 @@ export function ThreeColumnLayout({ children }: { children: React.ReactNode }) {
                 <CardTitle className="text-base">コミュニティ</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
-                <Button variant="ghost" size="sm" className="w-full justify-start h-8">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-full justify-start"
+                >
                   <Users className="mr-2 h-4 w-4" />
                   React開発者
                 </Button>
-                <Button variant="ghost" size="sm" className="w-full justify-start h-8">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-full justify-start"
+                >
                   <Hash className="mr-2 h-4 w-4" />
                   デザイン
                 </Button>
@@ -353,17 +399,15 @@ export function ThreeColumnLayout({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* Main Feed */}
-      <main className="overflow-y-auto">
-        {children}
-      </main>
+      <main className="overflow-y-auto">{children}</main>
 
       {/* Right Sidebar */}
       <aside className="border-l">
         <ScrollArea className="h-full">
-          <div className="p-4 space-y-4">
+          <div className="space-y-4 p-4">
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center">
+                <CardTitle className="flex items-center text-base">
                   <TrendingUp className="mr-2 h-4 w-4" />
                   トレンド
                 </CardTitle>
@@ -390,10 +434,14 @@ export function ThreeColumnLayout({ children }: { children: React.ReactNode }) {
                     <div className="h-8 w-8 rounded-full bg-muted" />
                     <div>
                       <p className="text-sm font-medium">@username</p>
-                      <p className="text-xs text-muted-foreground">フォロワー 1.2K</p>
+                      <p className="text-xs text-muted-foreground">
+                        フォロワー 1.2K
+                      </p>
                     </div>
                   </div>
-                  <Button size="sm" variant="outline">フォロー</Button>
+                  <Button size="sm" variant="outline">
+                    フォロー
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -406,10 +454,11 @@ export function ThreeColumnLayout({ children }: { children: React.ReactNode }) {
 ```
 
 #### Tailwind CSS 4 グリッドシステム
+
 ```css
 @layer components {
   .desktop-layout {
-    @apply hidden xl:grid xl:grid-cols-[280px_1fr_320px] h-screen max-w-7xl mx-auto;
+    @apply mx-auto hidden h-screen max-w-7xl xl:grid xl:grid-cols-[280px_1fr_320px];
     container-type: inline-size;
   }
 
@@ -424,23 +473,34 @@ export function ThreeColumnLayout({ children }: { children: React.ReactNode }) {
 ---
 
 ### 4. Off-Canvas Drawer
+
 **用途：複雑な階層ナビゲーション**
 
 #### 特徴
+
 - ハンバーガーメニューから横スライドイン
 - 深い階層構造の情報を効率的に収納
 - モバイル限定表示を推奨
 
 #### shadcn/ui実装例
+
 ```tsx
 // src/shared/ui/off-canvas-drawer.tsx
-import { Sheet, SheetContent, SheetTrigger } from "@/shared/ui/sheet"
-import { Button } from "@/shared/ui/button"
-import { ScrollArea } from "@/shared/ui/scroll-area"
-import { Separator } from "@/shared/ui/separator"
-import { pb } from "@/shared/lib/pocketbase"
-import { Menu, Home, Search, Bell, User, Settings, HelpCircle } from "lucide-react"
-import { useEffect, useState } from "react"
+import { Sheet, SheetContent, SheetTrigger } from '@/shared/ui/sheet'
+import { Button } from '@/shared/ui/button'
+import { ScrollArea } from '@/shared/ui/scroll-area'
+import { Separator } from '@/shared/ui/separator'
+import { pb } from '@/shared/lib/pocketbase'
+import {
+  Menu,
+  Home,
+  Search,
+  Bell,
+  User,
+  Settings,
+  HelpCircle,
+} from 'lucide-react'
+import { useEffect, useState } from 'react'
 
 export function OffCanvasDrawer() {
   const [user, setUser] = useState(pb.authStore.model)
@@ -458,13 +518,13 @@ export function OffCanvasDrawer() {
         }
       }
     }
-    
+
     fetchProfile()
-    
+
     const unsubscribe = pb.authStore.onChange(() => {
       setUser(pb.authStore.model)
     })
-    
+
     return unsubscribe
   }, [user])
 
@@ -482,19 +542,23 @@ export function OffCanvasDrawer() {
               {/* Profile Section with PocketBase data */}
               <div className="flex items-center gap-3 pb-4">
                 {profile?.avatar ? (
-                  <img 
-                    src={pb.files.getUrl(profile, profile.avatar)} 
-                    alt="Profile" 
-                    className="h-12 w-12 rounded-full object-cover" 
+                  <img
+                    src={pb.files.getUrl(profile, profile.avatar)}
+                    alt="Profile"
+                    className="h-12 w-12 rounded-full object-cover"
                   />
                 ) : (
-                  <div className="h-12 w-12 rounded-full bg-primary flex items-center justify-center">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary">
                     <User className="h-6 w-6 text-primary-foreground" />
                   </div>
                 )}
                 <div>
-                  <p className="font-semibold">{profile?.name || user?.email || 'ユーザー名'}</p>
-                  <p className="text-sm text-muted-foreground">@{profile?.username || user?.username || 'username'}</p>
+                  <p className="font-semibold">
+                    {profile?.name || user?.email || 'ユーザー名'}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    @{profile?.username || user?.username || 'username'}
+                  </p>
                 </div>
               </div>
 
@@ -543,6 +607,7 @@ export function OffCanvasDrawer() {
 ```
 
 #### Responsive制御
+
 ```tsx
 // レスポンシブ表示制御
 export function ResponsiveNavigation() {
@@ -565,26 +630,43 @@ export function ResponsiveNavigation() {
 ---
 
 ### 5. Bottom Sheet
+
 **用途：一時的な操作・詳細表示**
 
 #### 適用場面
+
 - 投稿オプション設定
 - シェア機能
 - 文脈依存の操作メニュー
 
 #### 設計思想
+
 - 行動を途切れさせずに補助情報を提示
 - モバイル特化のインタラクション
 
 #### shadcn/ui実装例
+
 ```tsx
 // src/shared/ui/bottom-sheet.tsx
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/shared/ui/sheet"
-import { Button } from "@/shared/ui/button"
-import { Separator } from "@/shared/ui/separator"
-import { pb } from "@/shared/lib/pocketbase"
-import { Share, Copy, Download, Flag, Bookmark, MoreVertical } from "lucide-react"
-import { useState } from "react"
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '@/shared/ui/sheet'
+import { Button } from '@/shared/ui/button'
+import { Separator } from '@/shared/ui/separator'
+import { pb } from '@/shared/lib/pocketbase'
+import {
+  Share,
+  Copy,
+  Download,
+  Flag,
+  Bookmark,
+  MoreVertical,
+} from 'lucide-react'
+import { useState } from 'react'
 
 interface BottomSheetProps {
   trigger: React.ReactNode
@@ -595,13 +677,8 @@ interface BottomSheetProps {
 export function BottomSheet({ trigger, title, children }: BottomSheetProps) {
   return (
     <Sheet>
-      <SheetTrigger asChild>
-        {trigger}
-      </SheetTrigger>
-      <SheetContent
-        side="bottom"
-        className="h-auto max-h-[80vh] rounded-t-xl"
-      >
+      <SheetTrigger asChild>{trigger}</SheetTrigger>
+      <SheetContent side="bottom" className="h-auto max-h-[80vh] rounded-t-xl">
         <SheetHeader className="pb-4">
           <SheetTitle className="text-center">{title}</SheetTitle>
         </SheetHeader>
@@ -627,7 +704,10 @@ export function BottomSheet({ trigger, title, children }: BottomSheetProps) {
               <Download className="mr-3 h-5 w-5" />
               ダウンロード
             </Button>
-            <Button variant="ghost" className="w-full justify-start text-destructive">
+            <Button
+              variant="ghost"
+              className="w-full justify-start text-destructive"
+            >
               <Flag className="mr-3 h-5 w-5" />
               報告
             </Button>
@@ -657,30 +737,31 @@ export function PostActions() {
 
 ## ブレークポイント定義
 
-| 画面幅 | Tailwind Class | ナビゲーション | ペイン数 | 代表例 |
-|--------|----------------|----------------|----------|---------|
-| < 768px | `base` | Bottom Navigation | 1 | Instagram モバイル |
-| 768-1280px | `md:` `lg:` | Navigation Rail | 2 | Chromebook版 Twitter |
-| ≥ 1280px | `xl:` | 固定サイドバー | 3 | LinkedIn PC版 |
+| 画面幅     | Tailwind Class | ナビゲーション    | ペイン数 | 代表例               |
+| ---------- | -------------- | ----------------- | -------- | -------------------- |
+| < 768px    | `base`         | Bottom Navigation | 1        | Instagram モバイル   |
+| 768-1280px | `md:` `lg:`    | Navigation Rail   | 2        | Chromebook版 Twitter |
+| ≥ 1280px   | `xl:`          | 固定サイドバー    | 3        | LinkedIn PC版        |
 
 ### Tailwind CSS 4 設定
+
 ```js
 // tailwind.config.js
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   theme: {
     screens: {
-      'sm': '640px',
-      'md': '768px',
-      'lg': '1024px',
-      'xl': '1280px',
+      sm: '640px',
+      md: '768px',
+      lg: '1024px',
+      xl: '1280px',
       '2xl': '1536px',
     },
     container: {
       center: true,
-      padding: "2rem",
+      padding: '2rem',
       screens: {
-        "2xl": "1400px",
+        '2xl': '1400px',
       },
     },
   },
@@ -688,9 +769,10 @@ module.exports = {
 ```
 
 ### CSS変数とレイヤー設定
+
 ```css
 /* globals.css */
-@import "tailwindcss";
+@import 'tailwindcss';
 
 @layer base {
   :root {
@@ -720,11 +802,13 @@ module.exports = {
 ## ナビゲーション設計ガイドライン
 
 ### 項目数の推奨範囲
+
 - **Bottom Navigation**：3-5項目（Material Design準拠）
 - **Navigation Rail**：3-7項目
 - **Sidebar**：制限なし（階層化により整理）
 
 ### 必須機能の配置
+
 1. **フィード閲覧**：常に最も目立つ位置
 2. **投稿機能**：FABまたはヘッダーボタンで常時アクセス可能
 3. **プロフィール・設定**：ナビゲーション内で一貫した位置
@@ -735,16 +819,15 @@ module.exports = {
 ## 実装指針
 
 ### 1. shadcn/ui コンポーネント活用 (FSD構造対応)
+
 ```tsx
 // src/shared/ui/responsive-layout.tsx
-import {
-  Button, Card, Sheet, ScrollArea, Separator, Badge
-} from "@/shared/ui"
-import { pb } from "@/shared/lib/pocketbase"
-import { MobileLayout } from "@/shared/ui/mobile-layout"
-import { TwoPaneLayout } from "@/shared/ui/two-pane-layout"
-import { ThreeColumnLayout } from "@/shared/ui/three-column-layout"
-import { useEffect, useState } from "react"
+import { Button, Card, Sheet, ScrollArea, Separator, Badge } from '@/shared/ui'
+import { pb } from '@/shared/lib/pocketbase'
+import { MobileLayout } from '@/shared/ui/mobile-layout'
+import { TwoPaneLayout } from '@/shared/ui/two-pane-layout'
+import { ThreeColumnLayout } from '@/shared/ui/three-column-layout'
+import { useEffect, useState } from 'react'
 
 // レイアウトの基本構成 (PocketBase統合)
 export function ResponsiveLayout({ children }: { children: React.ReactNode }) {
@@ -754,16 +837,20 @@ export function ResponsiveLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // PocketBase認証状態の初期化
     setIsLoading(false)
-    
+
     const unsubscribe = pb.authStore.onChange(() => {
       setUser(pb.authStore.model)
     })
-    
+
     return unsubscribe
   }, [])
 
   if (isLoading) {
-    return <div className="flex items-center justify-center h-screen">Loading...</div>
+    return (
+      <div className="flex h-screen items-center justify-center">
+        Loading...
+      </div>
+    )
   }
 
   return (
@@ -788,6 +875,7 @@ export function ResponsiveLayout({ children }: { children: React.ReactNode }) {
 ```
 
 ### 2. Tailwind CSS 4 新機能活用
+
 ```css
 /* コンテナクエリを使用した適応的デザイン */
 @layer components {
@@ -811,7 +899,7 @@ export function ResponsiveLayout({ children }: { children: React.ReactNode }) {
 /* CSS-in-JS代替としてのTailwind機能 */
 @layer utilities {
   .glass-effect {
-    @apply bg-background/80 backdrop-blur-sm border border-border/50;
+    @apply border border-border/50 bg-background/80 backdrop-blur-sm;
   }
 
   .nav-focus {
@@ -821,6 +909,7 @@ export function ResponsiveLayout({ children }: { children: React.ReactNode }) {
 ```
 
 ### 3. TypeScript型定義 (PocketBase統合)
+
 ```tsx
 // src/entities/layout/model/types.ts
 export interface LayoutProps {
@@ -872,6 +961,7 @@ export interface RealtimeEvent<T = any> {
 ```
 
 ### 4. パフォーマンス最適化
+
 ```tsx
 // 遅延ローディングとコード分割
 import { lazy, Suspense } from 'react'
@@ -902,22 +992,22 @@ export function OptimizedLayout() {
 ## アクセシビリティ要件
 
 ### shadcn/ui標準準拠
+
 shadcn/uiはRadix UI Primitivesをベースとしており、WAI-ARIA準拠のアクセシビリティが組み込まれています。
 
 ```tsx
 // 適切なARIA属性の使用例
-import { Button } from "@/components/ui/button"
-import { NavigationMenu, NavigationMenuItem } from "@/components/ui/navigation-menu"
+import { Button } from '@/components/ui/button'
+import {
+  NavigationMenu,
+  NavigationMenuItem,
+} from '@/components/ui/navigation-menu'
 
 export function AccessibleNavigation() {
   return (
     <NavigationMenu>
       <NavigationMenuItem>
-        <Button
-          variant="ghost"
-          aria-label="ホームに移動"
-          className="nav-focus"
-        >
+        <Button variant="ghost" aria-label="ホームに移動" className="nav-focus">
           <Home className="h-5 w-5" />
           <span className="sr-only">ホーム</span>
         </Button>
@@ -928,6 +1018,7 @@ export function AccessibleNavigation() {
 ```
 
 ### タッチターゲット（Tailwind CSS 4対応）
+
 ```css
 @layer components {
   .touch-target {
@@ -946,6 +1037,7 @@ export function AccessibleNavigation() {
 ```
 
 ### キーボードナビゲーション
+
 ```tsx
 // キーボードショートカット実装
 import { useEffect } from 'react'
@@ -972,6 +1064,7 @@ export function useKeyboardShortcuts() {
 ```
 
 ### Screen Reader対応
+
 ```tsx
 // Live Region を使用した動的コンテンツ通知
 import { useState } from 'react'
@@ -987,11 +1080,7 @@ export function LiveRegionExample() {
 
   return (
     <>
-      <div
-        aria-live="polite"
-        aria-atomic="true"
-        className="sr-only"
-      >
+      <div aria-live="polite" aria-atomic="true" className="sr-only">
         {announcement}
       </div>
       {/* その他のコンテンツ */}
@@ -1015,6 +1104,7 @@ export function LiveRegionExample() {
 3. **`src/shared/lib/pocketbase.ts`** - PocketBase接続設定
 
 **理由:**
+
 - このアプリは親アプリからiframe経由で認証情報を受信する特殊なシステム
 - `App.tsx`はこの認証フローを管理しており、変更すると認証が機能しなくなる
 - PocketBase設定は特定の構成で最適化されており、変更は非推奨
@@ -1035,6 +1125,7 @@ export function LiveRegionExample() {
 - **機能活用**: リアルタイム更新、ファイルアップロード、高度なフィルタリングなどを積極活用
 
 ### 完全なレスポンシブレイアウト実装 (FSD + PocketBase統合)
+
 ```tsx
 // src/app/layout.tsx - ❗重要: App.tsxは変更禁止ファイルです
 'use client'
@@ -1045,11 +1136,7 @@ import { pb } from '@/shared/lib/pocketbase'
 import { ResponsiveLayout } from '@/shared/ui/responsive-layout'
 
 // ❗ App.tsxは変更禁止 - iframe認証システムを管理
-export default function AppLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false)
   const [authInitialized, setAuthInitialized] = useState(false)
 
@@ -1075,17 +1162,19 @@ export default function AppLayout({
 
   if (!mounted || !authInitialized) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      <div className="flex h-screen items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-primary"></div>
       </div>
     )
   }
 
   return (
-    <div className={cn(
-      "min-h-screen bg-background font-sans antialiased",
-      "responsive-layout"
-    )}>
+    <div
+      className={cn(
+        'min-h-screen bg-background font-sans antialiased',
+        'responsive-layout'
+      )}
+    >
       <ResponsiveLayout>{children}</ResponsiveLayout>
     </div>
   )
@@ -1093,6 +1182,7 @@ export default function AppLayout({
 ```
 
 ### Context API を使用した状態管理 (FSD + PocketBase統合)
+
 ```tsx
 // src/app/providers/layout-provider.tsx
 'use client'
@@ -1115,7 +1205,9 @@ const LayoutContext = createContext<LayoutContextType | undefined>(undefined)
 
 export function LayoutProvider({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [activeView, setActiveView] = useState<'feed' | 'search' | 'notifications' | 'profile'>('feed')
+  const [activeView, setActiveView] = useState<
+    'feed' | 'search' | 'notifications' | 'profile'
+  >('feed')
   const [user, setUser] = useState<PocketBaseUser | null>(pb.authStore.model)
   const [isOnline, setIsOnline] = useState(navigator.onLine)
   const [notifications, setNotifications] = useState(0)
@@ -1129,7 +1221,7 @@ export function LayoutProvider({ children }: { children: React.ReactNode }) {
     // オンライン/オフライン状態の監視
     const handleOnline = () => setIsOnline(true)
     const handleOffline = () => setIsOnline(false)
-    
+
     window.addEventListener('online', handleOnline)
     window.addEventListener('offline', handleOffline)
 
@@ -1137,7 +1229,7 @@ export function LayoutProvider({ children }: { children: React.ReactNode }) {
     if (user) {
       pb.collection('notifications').subscribe('*', (e) => {
         if (e.action === 'create' && e.record.user === user.id) {
-          setNotifications(prev => prev + 1)
+          setNotifications((prev) => prev + 1)
         }
       })
     }
@@ -1151,15 +1243,17 @@ export function LayoutProvider({ children }: { children: React.ReactNode }) {
   }, [user])
 
   return (
-    <LayoutContext.Provider value={{
-      sidebarOpen,
-      setSidebarOpen,
-      activeView,
-      setActiveView,
-      user,
-      isOnline,
-      notifications,
-    }}>
+    <LayoutContext.Provider
+      value={{
+        sidebarOpen,
+        setSidebarOpen,
+        activeView,
+        setActiveView,
+        user,
+        isOnline,
+        notifications,
+      }}
+    >
       {children}
     </LayoutContext.Provider>
   )
@@ -1175,6 +1269,7 @@ export function useLayout() {
 ```
 
 ### テスト戦略 (FSD + PocketBase対応)
+
 ```tsx
 // src/shared/ui/__tests__/responsive-layout.test.tsx
 import { render, screen, waitFor } from '@testing-library/react'
@@ -1200,11 +1295,7 @@ vitest.mock('@/shared/lib/pocketbase', () => ({
 // モバイル表示テスト
 describe('Responsive Layout with PocketBase', () => {
   const renderWithProvider = (children: React.ReactNode) => {
-    return render(
-      <LayoutProvider>
-        {children}
-      </LayoutProvider>
-    )
+    return render(<LayoutProvider>{children}</LayoutProvider>)
   }
 
   it('shows bottom navigation on mobile with user auth', async () => {
@@ -1214,9 +1305,7 @@ describe('Responsive Layout with PocketBase', () => {
       value: 375,
     })
 
-    renderWithProvider(
-      <ResponsiveLayout>Test Content</ResponsiveLayout>
-    )
+    renderWithProvider(<ResponsiveLayout>Test Content</ResponsiveLayout>)
 
     await waitFor(() => {
       expect(screen.getByRole('navigation')).toBeInTheDocument()
@@ -1231,9 +1320,7 @@ describe('Responsive Layout with PocketBase', () => {
       value: false,
     })
 
-    renderWithProvider(
-      <ResponsiveLayout>Test Content</ResponsiveLayout>
-    )
+    renderWithProvider(<ResponsiveLayout>Test Content</ResponsiveLayout>)
 
     await waitFor(() => {
       expect(screen.getByText('オフラインモード')).toBeInTheDocument()
@@ -1247,9 +1334,7 @@ describe('Responsive Layout with PocketBase', () => {
       value: 768,
     })
 
-    renderWithProvider(
-      <ResponsiveLayout>Test Content</ResponsiveLayout>
-    )
+    renderWithProvider(<ResponsiveLayout>Test Content</ResponsiveLayout>)
 
     await waitFor(() => {
       // タブレット用のナビゲーションレールが表示されることを確認
@@ -1260,6 +1345,7 @@ describe('Responsive Layout with PocketBase', () => {
 ```
 
 ### パフォーマンス最適化設定
+
 ```tsx
 // next.config.js
 /** @type {import('next').NextConfig} */

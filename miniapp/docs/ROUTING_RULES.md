@@ -14,6 +14,7 @@
 新しいページを追加する際は、以下の手順を**必ず両方**実行してください：
 
 ### 1. ページコンポーネントの作成
+
 `src/pages/` にページコンポーネントを作成します。
 
 ```typescript
@@ -37,6 +38,7 @@ export function AboutPage() {
 ```
 
 ### 2. App Routerルートの作成
+
 `app/` にディレクトリとpage.tsxを作成し、作成したページコンポーネントをインポートします。
 
 ```typescript
@@ -51,20 +53,23 @@ export default function About() {
 ## 具体的な例
 
 ### 例1: 基本的なページ
-| URL | ディレクトリ構造 |
-|-----|-----------------|
-| `/about` | `app/about/page.tsx` → `src/pages/AboutPage.tsx` |
+
+| URL        | ディレクトリ構造                                     |
+| ---------- | ---------------------------------------------------- |
+| `/about`   | `app/about/page.tsx` → `src/pages/AboutPage.tsx`     |
 | `/contact` | `app/contact/page.tsx` → `src/pages/ContactPage.tsx` |
 
 ### 例2: 階層化されたページ
-| URL | ディレクトリ構造 |
-|-----|-----------------|
+
+| URL                 | ディレクトリ構造                                                      |
+| ------------------- | --------------------------------------------------------------------- |
 | `/profile/settings` | `app/profile/settings/page.tsx` → `src/pages/ProfileSettingsPage.tsx` |
-| `/admin/users` | `app/admin/users/page.tsx` → `src/pages/AdminUsersPage.tsx` |
+| `/admin/users`      | `app/admin/users/page.tsx` → `src/pages/AdminUsersPage.tsx`           |
 
 ### 例3: 動的ルート
-| URL | ディレクトリ構造 |
-|-----|-----------------|
+
+| URL           | ディレクトリ構造                                           |
+| ------------- | ---------------------------------------------------------- |
 | `/users/[id]` | `app/users/[id]/page.tsx` → `src/pages/UserDetailPage.tsx` |
 
 ```typescript
@@ -99,12 +104,14 @@ export function UserDetailPage({ userId }: UserDetailPageProps) {
 ## 命名規則
 
 ### ページコンポーネント (`src/pages/`)
-- **ファイル名**: `PascalCase` + `Page.tsx` 
+
+- **ファイル名**: `PascalCase` + `Page.tsx`
 - **コンポーネント名**: ファイル名と同じ
 - **例**: `HomePage.tsx`, `UserDetailPage.tsx`, `ProfileSettingsPage.tsx`
 
 ### App Router (`app/`)
-- **ディレクトリ名**: `kebab-case` 
+
+- **ディレクトリ名**: `kebab-case`
 - **ファイル名**: 常に `page.tsx`
 - **コンポーネント名**: URLに基づいたPascalCase
 - **例**: `app/about/page.tsx` → `About()`, `app/user-profile/page.tsx` → `UserProfile()`
@@ -112,6 +119,7 @@ export function UserDetailPage({ userId }: UserDetailPageProps) {
 ## 重要な注意点
 
 ### ✅ 正しい実装パターン
+
 ```typescript
 // app/settings/page.tsx
 import { SettingsPage } from "@/pages/SettingsPage";
@@ -122,14 +130,16 @@ export default function Settings() {
 ```
 
 ### ❌ 避けるべきパターン
+
 ```typescript
 // app/settings/page.tsx - 直接実装はNG
 export default function Settings() {
-  return <div>設定画面の直接実装</div>; // FSD違反
+  return <div>設定画面の直接実装 < /div>; / / FSD違反
 }
 ```
 
 ### ❌ 片方だけの実装はNG
+
 - `src/pages/AboutPage.tsx` だけ作成して `app/about/page.tsx` を作らない
 - `app/about/page.tsx` だけ作成して `src/pages/AboutPage.tsx` を作らない
 

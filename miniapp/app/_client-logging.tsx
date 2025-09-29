@@ -9,9 +9,9 @@
 // - 環境変数 NEXT_PUBLIC_LOG_PREFIX を設定（例："[WEAVO]"）。未設定なら "[APP]"。
 // - 追加の制御が必要なら、下の「カスタマイズ項目」を編集してください。
 
-"use client";
+'use client'
 
-import { useEffect } from "react";
+import { useEffect } from 'react'
 
 //========================
 // カスタマイズ項目
@@ -21,26 +21,26 @@ import { useEffect } from "react";
 //    - デプロイ時は .env / .env.local 等に NEXT_PUBLIC_LOG_PREFIX を設定する想定。
 //    - 未設定時は "[APP]" を利用する。
 const ENV_PREFIX: string =
-  process.env.NEXT_PUBLIC_LOG_PREFIX ?? "[WEAVO MiniApp]";
+  process.env.NEXT_PUBLIC_LOG_PREFIX ?? '[WEAVO MiniApp]'
 
 // 2) console.log をどのレベルで扱うか（"info" 推奨）。
 //    - "info" にすると log と info がまとまり、集計・運用が楽になります。
-const MAP_LOG_TO: "info" | "debug" | "warn" | "error" = "info";
+const MAP_LOG_TO: 'info' | 'debug' | 'warn' | 'error' = 'info'
 
 // 3) タイムスタンプのフォーマット（ISO8601固定が扱いやすい）
 function nowISO(): string {
-  return new Date().toISOString();
+  return new Date().toISOString()
 }
 
 // 4) 多重登録ガードで使うグローバルキー（衝突回避のため一意な名前にする）
-const FLAG_KEY = "__CLIENT_LOGGING_INSTALLED__";
-const UNINSTALL_KEY = "__CLIENT_LOGGING_UNINSTALL__";
+const FLAG_KEY = '__CLIENT_LOGGING_INSTALLED__'
+const UNINSTALL_KEY = '__CLIENT_LOGGING_UNINSTALL__'
 
 // 5) 開発中に一時的に特定の機能を OFF にしたい場合（true にする）
 //    - 本番では基本すべて true のままで OK。
-const ENABLE_CONSOLE_PATCH = true;
-const ENABLE_WINDOW_ONERROR = true;
-const ENABLE_WINDOW_UNHANDLED_REJECTION = true;
+const ENABLE_CONSOLE_PATCH = true
+const ENABLE_WINDOW_ONERROR = true
+const ENABLE_WINDOW_UNHANDLED_REJECTION = true
 
 //========================
 // 実装
@@ -58,48 +58,48 @@ function installConsolePatch(prefix: string): () => void {
     warn: console.warn.bind(console),
     error: console.error.bind(console),
     log: console.log.bind(console),
-  };
+  }
 
   // 指定レベルで出力するラッパー関数を作る
   const wrap =
-    (level: "debug" | "info" | "warn" | "error") =>
+    (level: 'debug' | 'info' | 'warn' | 'error') =>
     (...args: unknown[]) => {
-      const head = `${nowISO()} ${prefix} [${level.toUpperCase()}]`;
+      const head = `${nowISO()} ${prefix} [${level.toUpperCase()}]`
       switch (level) {
-        case "error":
-          original.error(head, ...args);
-          break;
-        case "warn":
-          original.warn(head, ...args);
-          break;
-        case "debug":
-          original.debug(head, ...args);
-          break;
-        case "info":
+        case 'error':
+          original.error(head, ...args)
+          break
+        case 'warn':
+          original.warn(head, ...args)
+          break
+        case 'debug':
+          original.debug(head, ...args)
+          break
+        case 'info':
         default:
-          original.info(head, ...args);
-          break;
+          original.info(head, ...args)
+          break
       }
-    };
+    }
 
   // 実際にパッチ適用（console.log は MAP_LOG_TO にマップ）
-  console.debug = wrap("debug");
-  console.info = wrap("info");
-  console.warn = wrap("warn");
-  console.error = wrap("error");
-  console.log = wrap(MAP_LOG_TO);
+  console.debug = wrap('debug')
+  console.info = wrap('info')
+  console.warn = wrap('warn')
+  console.error = wrap('error')
+  console.log = wrap(MAP_LOG_TO)
 
   // 起動確認ログ（これ以降のログはすべてプレフィックス付きで出力）
-  console.info(`${nowISO()} ${prefix} [INFO] Client console patched`);
+  console.info(`${nowISO()} ${prefix} [INFO] Client console patched`)
 
   // 解除関数（必要に応じて呼べるように返す）
   return () => {
-    console.debug = original.debug;
-    console.info = original.info;
-    console.warn = original.warn;
-    console.error = original.error;
-    console.log = original.log;
-  };
+    console.debug = original.debug
+    console.info = original.info
+    console.warn = original.warn
+    console.error = original.error
+    console.log = original.log
+  }
 }
 
 /**
@@ -118,8 +118,8 @@ function installGlobalErrorHandlers(prefix: string): () => void {
         colno: event?.colno,
         error: event?.error,
       }
-    );
-  };
+    )
+  }
 
   // イベントハンドラ：未処理の Promise 拒否
   const onRejection = (event: PromiseRejectionEvent) => {
@@ -128,30 +128,30 @@ function installGlobalErrorHandlers(prefix: string): () => void {
       {
         reason: event?.reason, // 例：Error / string / any
       }
-    );
-  };
+    )
+  }
 
   if (ENABLE_WINDOW_ONERROR) {
-    window.addEventListener("error", onError);
+    window.addEventListener('error', onError)
   }
   if (ENABLE_WINDOW_UNHANDLED_REJECTION) {
-    window.addEventListener("unhandledrejection", onRejection);
+    window.addEventListener('unhandledrejection', onRejection)
   }
 
   // 起動確認
   console.info(
     `${nowISO()} ${prefix} [client-events] [INFO] Error handlers installed`
-  );
+  )
 
   // 解除関数
   return () => {
     if (ENABLE_WINDOW_ONERROR) {
-      window.removeEventListener("error", onError);
+      window.removeEventListener('error', onError)
     }
     if (ENABLE_WINDOW_UNHANDLED_REJECTION) {
-      window.removeEventListener("unhandledrejection", onRejection);
+      window.removeEventListener('unhandledrejection', onRejection)
     }
-  };
+  }
 }
 
 /**
@@ -162,50 +162,50 @@ function installGlobalErrorHandlers(prefix: string): () => void {
  */
 export default function ClientLogging(): null {
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (typeof window === 'undefined') return
 
     // すでに導入済みなら何もしない
-    const anyWindow = window as unknown as { [key: string]: unknown };
+    const anyWindow = window as unknown as { [key: string]: unknown }
     if (anyWindow[FLAG_KEY]) {
-      return;
+      return
     }
 
-    anyWindow[FLAG_KEY] = true;
+    anyWindow[FLAG_KEY] = true
 
-    const uninstallers: Array<() => void> = [];
+    const uninstallers: Array<() => void> = []
 
     // 1) console.* をパッチ
     if (ENABLE_CONSOLE_PATCH) {
-      const unpatch = installConsolePatch(ENV_PREFIX);
-      uninstallers.push(unpatch);
+      const unpatch = installConsolePatch(ENV_PREFIX)
+      uninstallers.push(unpatch)
     }
 
     // 2) window.onerror / unhandledrejection を登録
-    const unreg = installGlobalErrorHandlers(ENV_PREFIX);
-    uninstallers.push(unreg);
+    const unreg = installGlobalErrorHandlers(ENV_PREFIX)
+    uninstallers.push(unreg)
 
     // アンインストール API（任意でデバッグに使う）
     anyWindow[UNINSTALL_KEY] = () => {
       while (uninstallers.length) {
-        const fn = uninstallers.pop();
+        const fn = uninstallers.pop()
         try {
-          fn?.();
+          fn?.()
         } catch {
           // 解除時の例外は握りつぶす
         }
       }
-      anyWindow[FLAG_KEY] = false;
+      anyWindow[FLAG_KEY] = false
       console.info(
         `${nowISO()} ${ENV_PREFIX} [INFO] Client logging uninstalled`
-      );
-    };
+      )
+    }
 
     // アンマウント時（通常は呼ばれない想定。次のマウントでガードが効く）
     return () => {
       // アンインストールは基本的にしない（Fast Refresh 対策）。
       // 本当に解除したいときは window.__CLIENT_LOGGING_UNINSTALL__() を手動で呼ぶ。
-    };
-  }, []);
+    }
+  }, [])
 
-  return null; // 画面には何も描画しない
+  return null // 画面には何も描画しない
 }

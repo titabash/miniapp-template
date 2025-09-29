@@ -1,37 +1,37 @@
 export interface User {
-  id: string;
-  email: string;
-  emailVisibility: boolean;
-  verified: boolean;
-  created: string;
-  updated: string;
-  name: string;
-  avatar: string;
+  id: string
+  email: string
+  emailVisibility: boolean
+  verified: boolean
+  created: string
+  updated: string
+  name: string
+  avatar: string
 }
 
 export type AuthStatus =
-  | "idle"
-  | "checking"
-  | "authenticating"
-  | "success"
-  | "error";
+  | 'idle'
+  | 'checking'
+  | 'authenticating'
+  | 'success'
+  | 'error'
 
 export interface AuthData {
-  email: string;
-  password: string;
+  email: string
+  password: string
 }
 
 export interface PostMessageData {
-  type: string;
-  data: AuthData;
+  type: string
+  data: AuthData
 }
 
 export interface PocketBaseError {
-  status: number;
+  status: number
   response: {
-    code: number;
-    message: string;
-    data: Record<string, unknown>;
-  };
-  originalError?: Error;
+    code: number
+    message: string
+    data: Record<string, unknown>
+  }
+  originalError?: Error
 }

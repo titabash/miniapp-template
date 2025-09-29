@@ -1,18 +1,18 @@
-import { query } from "@anthropic-ai/claude-code";
-import { exec } from "child_process";
-import { promisify } from "util";
-import type { Options } from "@anthropic-ai/claude-code";
-import type { DevelopmentRecord } from "../../core/types";
-import { BuildError } from "../../core/types";
+import { query } from '@anthropic-ai/claude-code'
+import { exec } from 'child_process'
+import { promisify } from 'util'
+import type { Options } from '@anthropic-ai/claude-code'
+import type { DevelopmentRecord } from '../../core/types'
+import { BuildError } from '../../core/types'
 import {
   saveMessageToDatabase,
   saveErrorToAIProcessing,
   updateDevelopmentStatusToCompleted,
   updateDevelopmentStatusToError,
-} from "../../core/database";
-import { formatMessage } from "../../core/formatter";
+} from '../../core/database'
+import { formatMessage } from '../../core/formatter'
 
-const execAsync = promisify(exec);
+const execAsync = promisify(exec)
 
 // Function to create Claude Code query options
 export function createQueryOptions(
@@ -20,11 +20,11 @@ export function createQueryOptions(
   model?: string
 ): Options {
   // デバッグ: モデル指定の確認
-  console.log(`🔍 createQueryOptions - Received model: "${model}"`);
+  console.log(`🔍 createQueryOptions - Received model: "${model}"`)
 
   // ANTHROPIC_BASE_URLに基づくモデル選択
-  let effectiveModel: string;
-  const anthropicBaseUrl = process.env.ANTHROPIC_BASE_URL;
+  let effectiveModel: string
+  const anthropicBaseUrl = process.env.ANTHROPIC_BASE_URL
 
   // if (anthropicBaseUrl === "http://127.0.0.1:4000") {
   //   // LiteLLMプロキシ使用時は渡されたmodelを優先、なければデフォルト
@@ -38,183 +38,183 @@ export function createQueryOptions(
   //   }
   // }
 
-  effectiveModel = model || "claude-sonnet-4";
+  effectiveModel = model || 'claude-sonnet-4'
 
   console.log(
     `🔍 createQueryOptions - Using effective model: "${effectiveModel}"`
-  );
+  )
 
   // 環境変数からcwdを取得（デフォルト: "/app/miniapp"）
-  const cwd = process.env.CLAUDE_CODE_CWD || "/app/miniapp";
-  console.log(`🔍 createQueryOptions - Using cwd: "${cwd}"`);
+  const cwd = process.env.CLAUDE_CODE_CWD || '/app/miniapp'
+  console.log(`🔍 createQueryOptions - Using cwd: "${cwd}"`)
 
   const options: Options = {
     maxTurns: 50,
     model: effectiveModel, // Use litellm model_name (not the actual model name)
     customSystemPrompt:
-      "You are an exceptionally skilled and experienced React + TypeScript + PocketBase developer with deep expertise in modern web development. You excel at building elegant, minimal apps with clean, production-ready code. You prioritize simplicity, maintainability, and fewer files while delivering robust functionality. Your solutions are always well-architected and follow best practices.",
-    appendSystemPrompt: "You are using the PocketBase MCP Server.",
+      'You are an exceptionally skilled and experienced React + TypeScript + PocketBase developer with deep expertise in modern web development. You excel at building elegant, minimal apps with clean, production-ready code. You prioritize simplicity, maintainability, and fewer files while delivering robust functionality. Your solutions are always well-architected and follow best practices.',
+    appendSystemPrompt: 'You are using the PocketBase MCP Server.',
     cwd: cwd,
-    permissionMode: "acceptEdits",
+    permissionMode: 'acceptEdits',
     // pathToClaudeCodeExecutable: "/toolbox/agent/node_modules/@anthropic-ai/claude-code/cli.js",
     mcpServers: {
       pocketbase: {
-        type: "stdio",
-        command: "node",
-        args: ["/mcp/pocketbase-mcp/build/index.js"],
+        type: 'stdio',
+        command: 'node',
+        args: ['/mcp/pocketbase-mcp/build/index.js'],
         env: {
-          POCKETBASE_URL: "http://127.0.0.1:8090",
-          POCKETBASE_ADMIN_EMAIL: "admin@example.com",
-          POCKETBASE_ADMIN_PASSWORD: "mypassword123",
-          POCKETBASE_DATA_DIR: "/vercel/sandbox/pb/pb_data",
+          POCKETBASE_URL: 'http://127.0.0.1:8090',
+          POCKETBASE_ADMIN_EMAIL: 'admin@example.com',
+          POCKETBASE_ADMIN_PASSWORD: 'mypassword123',
+          POCKETBASE_DATA_DIR: '/vercel/sandbox/pb/pb_data',
         },
       },
       magicuidesign: {
-        type: "stdio",
-        command: "npx",
-        args: ["-y", "@magicuidesign/mcp@latest"],
+        type: 'stdio',
+        command: 'npx',
+        args: ['-y', '@magicuidesign/mcp@latest'],
       },
       shadcn: {
-        type: "stdio",
-        command: "npx",
-        args: ["-y", "shadcn@canary", "registry:mcp"],
+        type: 'stdio',
+        command: 'npx',
+        args: ['-y', 'shadcn@canary', 'registry:mcp'],
         env: {
-          REGISTRY_URL: "https://animate-ui.com/r/registry.json",
+          REGISTRY_URL: 'https://animate-ui.com/r/registry.json',
         },
       },
       context7: {
-        type: "stdio",
-        command: "npx",
-        args: ["-y", "@upstash/context7-mcp"],
+        type: 'stdio',
+        command: 'npx',
+        args: ['-y', '@upstash/context7-mcp'],
       },
       playwright: {
-        type: "stdio",
-        command: "npx",
-        args: ["-y", "@playwright/mcp@latest", "--isolated"],
+        type: 'stdio',
+        command: 'npx',
+        args: ['-y', '@playwright/mcp@latest', '--isolated'],
       },
     },
     allowedTools: [
-      "Agent",
-      "TodoWrite",
-      "TodoRead",
-      "Read",
-      "Write",
-      "Edit",
-      "MultiEdit",
-      "Bash",
-      "Glob",
-      "Grep",
-      "LS",
-      "WebSearch",
-      "WebFetch",
-      "Bash(rm -f ./)",
-      "Bash(pnpm dlx shadcn@latest add:*)",
-      "Bash(pnpm dlx shadcn@latest add --overwrite:*)",
-      "Bash(pnpm install)",
-      "Bash(pnpm install:*)",
-      "Bash(pnpm run build)",
-      "mcp__pocketbase",
-      "mcp__magicuidesign",
-      "mcp__shadcn",
-      "mcp__context7",
-      "mcp__playwright",
+      'Agent',
+      'TodoWrite',
+      'TodoRead',
+      'Read',
+      'Write',
+      'Edit',
+      'MultiEdit',
+      'Bash',
+      'Glob',
+      'Grep',
+      'LS',
+      'WebSearch',
+      'WebFetch',
+      'Bash(rm -f ./)',
+      'Bash(pnpm dlx shadcn@latest add:*)',
+      'Bash(pnpm dlx shadcn@latest add --overwrite:*)',
+      'Bash(pnpm install)',
+      'Bash(pnpm install:*)',
+      'Bash(pnpm run build)',
+      'mcp__pocketbase',
+      'mcp__magicuidesign',
+      'mcp__shadcn',
+      'mcp__context7',
+      'mcp__playwright',
     ],
     disallowedTools: [
       // 認証システム関連（絶対変更禁止）
-      "Edit(**/shared/lib/pocketbase.ts)",
-      "MultiEdit(**/shared/lib/pocketbase.ts)",
-      "Write(**/shared/lib/pocketbase.ts)",
-      "Edit(**/features/auth/model/useAuth.ts)",
-      "MultiEdit(**/features/auth/model/useAuth.ts)",
-      "Write(**/features/auth/model/useAuth.ts)",
-      "Edit(**/features/auth/ui/LoginForm.tsx)",
-      "MultiEdit(**/features/auth/ui/LoginForm.tsx)",
-      "Write(**/features/auth/ui/LoginForm.tsx)",
-      "Edit(**/features/auth/model/validation.ts)",
-      "MultiEdit(**/features/auth/model/validation.ts)",
-      "Write(**/features/auth/model/validation.ts)",
+      'Edit(**/shared/lib/pocketbase.ts)',
+      'MultiEdit(**/shared/lib/pocketbase.ts)',
+      'Write(**/shared/lib/pocketbase.ts)',
+      'Edit(**/features/auth/model/useAuth.ts)',
+      'MultiEdit(**/features/auth/model/useAuth.ts)',
+      'Write(**/features/auth/model/useAuth.ts)',
+      'Edit(**/features/auth/ui/LoginForm.tsx)',
+      'MultiEdit(**/features/auth/ui/LoginForm.tsx)',
+      'Write(**/features/auth/ui/LoginForm.tsx)',
+      'Edit(**/features/auth/model/validation.ts)',
+      'MultiEdit(**/features/auth/model/validation.ts)',
+      'Write(**/features/auth/model/validation.ts)',
 
       // レイアウト・プロバイダー関連（慎重に変更）
-      "Edit(**/app/layout.tsx)",
-      "MultiEdit(**/app/layout.tsx)",
-      "Write(**/app/layout.tsx)",
-      "Edit(**/app/providers/auth-provider.tsx)",
-      "MultiEdit(**/app/providers/auth-provider.tsx)",
-      "Write(**/app/providers/auth-provider.tsx)",
+      'Edit(**/app/layout.tsx)',
+      'MultiEdit(**/app/layout.tsx)',
+      'Write(**/app/layout.tsx)',
+      'Edit(**/app/providers/auth-provider.tsx)',
+      'MultiEdit(**/app/providers/auth-provider.tsx)',
+      'Write(**/app/providers/auth-provider.tsx)',
 
       // Server Actions（外部API基盤）- 全体を保護
-      "Edit(**/shared/server/**)",
-      "MultiEdit(**/shared/server/**)",
-      "Write(**/shared/server/**)",
+      'Edit(**/shared/server/**)',
+      'MultiEdit(**/shared/server/**)',
+      'Write(**/shared/server/**)',
 
       // 既存の認証関連（広範囲の保護）
-      "Edit(**/pocketbase.ts)",
-      "MultiEdit(**/pocketbase.ts)",
-      "Write(**/pocketbase.ts)",
-      "Edit(**/features/auth/**)",
-      "MultiEdit(**/features/auth/**)",
-      "Write(**/features/auth/**)",
+      'Edit(**/pocketbase.ts)',
+      'MultiEdit(**/pocketbase.ts)',
+      'Write(**/pocketbase.ts)',
+      'Edit(**/features/auth/**)',
+      'MultiEdit(**/features/auth/**)',
+      'Write(**/features/auth/**)',
 
       // 危険なコマンド（削除系）
-      "Bash(rm -rf)",           // -rf 全域
-      "Bash(rm -r )",           // -r 単独（末尾スペースを意図的に含める例）
-      "Bash(rm -R )",           // -R 単独
-      "Bash(rm -f /)",          // 絶対パス直下
-      "Bash(rm -f //)",         // // 特殊
-      "Bash(rm -f ..)",         // 親ディレクトリ参照
-      "Bash(rm -f ../)",        // 親ディレクトリ配下
-      "Bash(rm -f ~)",          // ホーム配下
-      "Bash(rm -f * )",         // ワイルドカード（ゆるめのガード）
-      "Bash(rm -f */)",         // ディレクトリワイルドカード
+      'Bash(rm -rf)', // -rf 全域
+      'Bash(rm -r )', // -r 単独（末尾スペースを意図的に含める例）
+      'Bash(rm -R )', // -R 単独
+      'Bash(rm -f /)', // 絶対パス直下
+      'Bash(rm -f //)', // // 特殊
+      'Bash(rm -f ..)', // 親ディレクトリ参照
+      'Bash(rm -f ../)', // 親ディレクトリ配下
+      'Bash(rm -f ~)', // ホーム配下
+      'Bash(rm -f * )', // ワイルドカード（ゆるめのガード）
+      'Bash(rm -f */)', // ディレクトリワイルドカード
 
       // 開発サーバー関連（実行禁止）
-      "Bash(pnpm run dev)",
-      "Bash(pnpm run preview)",
-      "Bash(pnpm run build:watch)",
+      'Bash(pnpm run dev)',
+      'Bash(pnpm run preview)',
+      'Bash(pnpm run build:watch)',
     ],
-  };
+  }
 
   // Add session-related options if sessionId exists
   if (sessionId) {
-    (options as any).resume = sessionId;
-    console.log(`🔗 Using session ID for continuity: ${sessionId}`);
+    ;(options as any).resume = sessionId
+    console.log(`🔗 Using session ID for continuity: ${sessionId}`)
   }
 
-  return options;
+  return options
 }
 
 // Function to execute npm run build
 export async function executeBuild(): Promise<void> {
   try {
-    console.log("🔨 Starting npm run build in /app/miniapp...");
-    const { stdout, stderr } = await execAsync("npm run build", {
-      cwd: "/app/miniapp",
+    console.log('🔨 Starting npm run build in /app/miniapp...')
+    const { stdout, stderr } = await execAsync('npm run build', {
+      cwd: '/app/miniapp',
       timeout: 300000, // 5 minutes timeout
-    });
+    })
 
     if (stdout) {
-      console.log("📦 Build output:");
-      console.log(stdout);
+      console.log('📦 Build output:')
+      console.log(stdout)
     }
 
     if (stderr) {
-      console.log("⚠️ Build warnings/errors:");
-      console.log(stderr);
+      console.log('⚠️ Build warnings/errors:')
+      console.log(stderr)
     }
 
-    console.log("✅ Build completed successfully");
+    console.log('✅ Build completed successfully')
   } catch (buildError: any) {
-    console.error("❌ Build failed:");
-    console.error(buildError);
+    console.error('❌ Build failed:')
+    console.error(buildError)
 
     // Prepare build error details for retry
     const buildOutput = {
-      stdout: buildError.stdout || "",
-      stderr: buildError.stderr || buildError.message || "",
-    };
+      stdout: buildError.stdout || '',
+      stderr: buildError.stderr || buildError.message || '',
+    }
 
-    const error = new BuildError("Build failed", buildOutput);
-    throw error;
+    const error = new BuildError('Build failed', buildOutput)
+    throw error
   }
 }
 
@@ -224,46 +224,49 @@ export async function executeClaudeCode(
   queryOptions: Options,
   developmentRecord: DevelopmentRecord
 ): Promise<string | undefined> {
-  let sessionId: string | undefined;
+  let sessionId: string | undefined
 
   try {
-    console.log("🔍 Debug - Query options:");
-    console.log(`  Model: ${queryOptions.model}`);
-    console.log(`  MaxTurns: ${queryOptions.maxTurns}`);
-    console.log(`  CWD: ${queryOptions.cwd}`);
-    console.log(`  PermissionMode: ${queryOptions.permissionMode}`);
-    console.log("🔍 Debug - Full options object:");
+    console.log('🔍 Debug - Query options:')
+    console.log(`  Model: ${queryOptions.model}`)
+    console.log(`  MaxTurns: ${queryOptions.maxTurns}`)
+    console.log(`  CWD: ${queryOptions.cwd}`)
+    console.log(`  PermissionMode: ${queryOptions.permissionMode}`)
+    console.log('🔍 Debug - Full options object:')
     // console.log(JSON.stringify(queryOptions, null, 2));
-    console.log("🔍 Debug - Starting query execution...");
+    console.log('🔍 Debug - Starting query execution...')
     console.log(
       `🔍 Debug - Prompt: "${prompt.substring(0, 100)}${
-        prompt.length > 100 ? "..." : ""
+        prompt.length > 100 ? '...' : ''
       }"`
-    );
+    )
 
     const queryIterator = query({
       prompt: prompt,
       options: queryOptions,
-    });
+    })
 
-    console.log("🔍 Debug - Query iterator created, starting message loop...");
+    console.log('🔍 Debug - Query iterator created, starting message loop...')
 
     for await (const message of queryIterator) {
       console.log(
         `🔍 Debug - Received message type: ${message.type}, subtype: ${
-          (message as any).subtype || "N/A"
+          (message as any).subtype || 'N/A'
         }`
-      );
-      sessionId = message.session_id;
-      formatMessage(message);
+      )
+      sessionId = message.session_id
+      formatMessage(message)
 
       // Save message to database
       if (developmentRecord) {
         try {
           // Debug: Check developmentRecord and user_id
           if (!developmentRecord.user_id) {
-            console.error("❌ CRITICAL: developmentRecord.user_id is missing!");
-            console.error("  developmentRecord:", JSON.stringify(developmentRecord, null, 2));
+            console.error('❌ CRITICAL: developmentRecord.user_id is missing!')
+            console.error(
+              '  developmentRecord:',
+              JSON.stringify(developmentRecord, null, 2)
+            )
           }
 
           await saveMessageToDatabase(
@@ -271,26 +274,26 @@ export async function executeClaudeCode(
             developmentRecord.id,
             queryOptions.model,
             developmentRecord.user_id
-          );
-          console.log("✅ Debug - Message saved to database successfully");
+          )
+          console.log('✅ Debug - Message saved to database successfully')
         } catch (dbError: any) {
           console.error(
-            "❌ Critical - Failed to save message to database:",
+            '❌ Critical - Failed to save message to database:',
             dbError
-          );
+          )
 
-          let errorMessage = "Database error during message processing";
-          let errorType = "DATABASE_ERROR";
+          let errorMessage = 'Database error during message processing'
+          let errorType = 'DATABASE_ERROR'
 
-          if (dbError.name === "InsufficientCreditError") {
-            errorMessage = `Credit insufficient. Current: $${dbError.currentBalance}, Required: $${dbError.requiredCost}`;
-            errorType = "INSUFFICIENT_CREDIT";
-            console.error(`💳 ${errorMessage}`);
-          } else if (dbError.message?.includes("userId is required")) {
-            errorMessage = "Critical error: User ID is missing";
-            errorType = "MISSING_USER_ID";
+          if (dbError.name === 'InsufficientCreditError') {
+            errorMessage = `Credit insufficient. Current: $${dbError.currentBalance}, Required: $${dbError.requiredCost}`
+            errorType = 'INSUFFICIENT_CREDIT'
+            console.error(`💳 ${errorMessage}`)
+          } else if (dbError.message?.includes('userId is required')) {
+            errorMessage = 'Critical error: User ID is missing'
+            errorType = 'MISSING_USER_ID'
           } else {
-            errorMessage = `Database error: ${dbError.message || "Unknown error"}`;
+            errorMessage = `Database error: ${dbError.message || 'Unknown error'}`
           }
 
           // Record error to miniapp_ai_processing table
@@ -304,11 +307,14 @@ export async function executeClaudeCode(
               {
                 error_type: errorType,
                 original_error: dbError.message,
-                stack_trace: dbError.stack
+                stack_trace: dbError.stack,
               }
-            );
+            )
           } catch (processingError) {
-            console.error("Failed to save to miniapp_ai_processing:", processingError);
+            console.error(
+              'Failed to save to miniapp_ai_processing:',
+              processingError
+            )
           }
 
           // Update development status to ERROR
@@ -317,39 +323,37 @@ export async function executeClaudeCode(
               developmentRecord,
               errorMessage,
               sessionId
-            );
-            console.log(
-              "📝 Development status updated to ERROR"
-            );
+            )
+            console.log('📝 Development status updated to ERROR')
           } catch (updateError) {
             console.error(
-              "❌ Failed to update development status to ERROR:",
+              '❌ Failed to update development status to ERROR:',
               updateError
-            );
+            )
           }
 
           // Always stop processing on any database error
-          throw dbError;
+          throw dbError
         }
       }
     }
 
-    console.log("🔍 Debug - Query execution completed");
-    return sessionId;
+    console.log('🔍 Debug - Query execution completed')
+    return sessionId
   } catch (queryError) {
-    console.log("🔍 Debug - Query error details:");
+    console.log('🔍 Debug - Query error details:')
     console.log(
       `  Error name: ${
-        queryError instanceof Error ? queryError.name : "Unknown"
+        queryError instanceof Error ? queryError.name : 'Unknown'
       }`
-    );
+    )
     console.log(
       `  Error message: ${
         queryError instanceof Error ? queryError.message : String(queryError)
       }`
-    );
+    )
 
-    throw queryError;
+    throw queryError
   }
 }
 
@@ -360,31 +364,31 @@ export async function executeDevelopmentCycle(
   developmentRecord: DevelopmentRecord,
   options?: { model?: string }
 ): Promise<{
-  success: boolean;
-  sessionId?: string;
-  buildErrorPrompt?: string;
+  success: boolean
+  sessionId?: string
+  buildErrorPrompt?: string
 }> {
   try {
     // Create query options
-    const queryOptions = createQueryOptions(sessionId, options?.model);
+    const queryOptions = createQueryOptions(sessionId, options?.model)
 
     // Execute Claude Code session
     const newSessionId = await executeClaudeCode(
       prompt,
       queryOptions,
       developmentRecord
-    );
+    )
 
     // Execute build
-    await executeBuild();
+    await executeBuild()
 
     // Update development status to completed after successful build
     // Note: MiniAppVersion creation is now handled in updateDevelopmentStatusToCompleted
-    await updateDevelopmentStatusToCompleted(developmentRecord, newSessionId);
+    await updateDevelopmentStatusToCompleted(developmentRecord, newSessionId)
 
-    return { success: true, sessionId: newSessionId };
+    return { success: true, sessionId: newSessionId }
   } catch (error: any) {
-    if (error.name === "BuildError") {
+    if (error.name === 'BuildError') {
       // Generate error prompt for build failure retry
       const buildErrorPrompt = `Previous build failed with the following error. Please fix the build issues and ensure the code compiles successfully:
 
@@ -395,17 +399,17 @@ ${
   error.buildOutput?.stdout
     ? `Build Output:
 ${error.buildOutput.stdout}`
-    : ""
-}`;
+    : ''
+}`
 
       return {
         success: false,
         sessionId: sessionId,
         buildErrorPrompt,
-      };
+      }
     }
 
     // Re-throw other errors
-    throw error;
+    throw error
   }
 }

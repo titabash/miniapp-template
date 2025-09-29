@@ -5,7 +5,7 @@
 **この認証システムは絶対に変更してはいけません。**
 
 - `App.tsx` - メイン認証制御コンポーネント（**変更厳禁**）
-- `src/features/auth/model/useAuth.ts` - 認証ロジック（**変更厳禁**）  
+- `src/features/auth/model/useAuth.ts` - 認証ロジック（**変更厳禁**）
 - `main.tsx` - エントリーポイント（**変更厳禁**）
 - `src/features/auth/api/actions.ts` - Server Functions 認証API（**変更厳禁**）
 
@@ -46,13 +46,13 @@ window.callServerFunction = async <T = any>(functionName: string, ...args: any[]
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ functionName, args })
   })
-  
+
   const data = await response.json()
-  
+
   if (!response.ok) {
     throw new Error(data.error || 'Server function call failed')
   }
-  
+
   return data.result
 }
 
@@ -78,6 +78,7 @@ window.addEventListener('unhandledrejection', (event) => {
 ```
 
 **重要な処理:**
+
 - Server Functions 呼び出し用のグローバル関数定義
 - `/actions` エンドポイントへのHTTPリクエスト
 - グローバルエラーハンドリング設定
@@ -111,6 +112,7 @@ function App() {
 ```
 
 **認証ステータス:**
+
 - `checking`: 初期認証状態検証中
 - `idle`: 認証情報待機中
 - `authenticating`: 認証処理実行中
@@ -123,20 +125,20 @@ function App() {
 
 ```typescript
 export function useMiniAppAuth(): UseAuthReturn {
-  const [authStatus, setAuthStatus] = useState<AuthStatus>("checking");
-  const [authMessage, setAuthMessage] = useState<string>("初期化中...");
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
-  const [isInitialized, setIsInitialized] = useState(false);
-  
+  const [authStatus, setAuthStatus] = useState<AuthStatus>('checking')
+  const [authMessage, setAuthMessage] = useState<string>('初期化中...')
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [user, setUser] = useState<User | null>(null)
+  const [isInitialized, setIsInitialized] = useState(false)
+
   // 認証処理用のAbortControllerを管理
-  const authControllerRef = useRef<AbortController | null>(null);
-  
+  const authControllerRef = useRef<AbortController | null>(null)
+
   // 同期実行中フラグ（useRef で即座に確認可能）
-  const isAuthenticatingRef = useRef<boolean>(false);
-  
+  const isAuthenticatingRef = useRef<boolean>(false)
+
   // デバウンス用タイマー管理
-  const debounceTimerRef = useRef<number | null>(null);
+  const debounceTimerRef = useRef<number | null>(null)
 }
 ```
 
@@ -147,66 +149,71 @@ const handleAuthentication = useCallback(
   async (email: string, password: string) => {
     // 多重実行防止チェック
     if (isAuthenticatingRef.current) {
-      return;
+      return
     }
 
     // AbortController で前回の処理をキャンセル
     if (authControllerRef.current) {
-      authControllerRef.current.abort();
+      authControllerRef.current.abort()
     }
 
-    const authController = new AbortController();
-    authControllerRef.current = authController;
-    isAuthenticatingRef.current = true;
-    
-    setAuthStatus("authenticating");
-    setAuthMessage("認証中...");
+    const authController = new AbortController()
+    authControllerRef.current = authController
+    isAuthenticatingRef.current = true
+
+    setAuthStatus('authenticating')
+    setAuthMessage('認証中...')
 
     try {
       // Server Functions で認証実行
       const authResult = await window.callServerFunction<AuthResult>(
-        'authenticateUser', email, password
-      );
+        'authenticateUser',
+        email,
+        password
+      )
 
       if (authResult.success && authResult.user && authResult.record) {
-        setUser(authResult.record);
-        setIsAuthenticated(true);
-        setAuthStatus("success");
-        setAuthMessage("認証済み");
-        notifyAuthSuccess(authResult.user);
+        setUser(authResult.record)
+        setIsAuthenticated(true)
+        setAuthStatus('success')
+        setAuthMessage('認証済み')
+        notifyAuthSuccess(authResult.user)
       } else {
-        throw new Error(authResult.error || "認証に失敗しました");
+        throw new Error(authResult.error || '認証に失敗しました')
       }
     } catch (error) {
       // 認証失敗時に自動ユーザー作成を試行
-      setAuthMessage("新しいユーザーを作成中...");
-      
+      setAuthMessage('新しいユーザーを作成中...')
+
       const createResult = await window.callServerFunction<AuthResult>(
-        'createUser', email, password
-      );
-      
+        'createUser',
+        email,
+        password
+      )
+
       if (createResult.success && createResult.user && createResult.record) {
-        setUser(createResult.record);
-        setIsAuthenticated(true);
-        setAuthStatus("success");
-        notifyAuthSuccess(createResult.user);
+        setUser(createResult.record)
+        setIsAuthenticated(true)
+        setAuthStatus('success')
+        notifyAuthSuccess(createResult.user)
       } else {
-        setAuthStatus("error");
-        setAuthMessage(`認証失敗: ${createResult.error}`);
-        notifyAuthFailure(createResult.error);
+        setAuthStatus('error')
+        setAuthMessage(`認証失敗: ${createResult.error}`)
+        notifyAuthFailure(createResult.error)
       }
     } finally {
-      isAuthenticatingRef.current = false;
+      isAuthenticatingRef.current = false
       if (authControllerRef.current === authController) {
-        authControllerRef.current = null;
+        authControllerRef.current = null
       }
     }
   },
   [notifyAuthSuccess, notifyAuthFailure]
-);
+)
 ```
 
 **重要ポイント:**
+
 - **Server Functions ベース認証**: `/actions` エンドポイント経由でPocketBaseに認証
 - **自動ユーザー作成**: 認証失敗時に自動的に新規ユーザー作成を試行
 - **多重実行防止**: AbortController + useRef による確実な重複処理防止
@@ -217,57 +224,67 @@ const handleAuthentication = useCallback(
 ```typescript
 // postMessage監視（デバウンス処理付き）
 useEffect(() => {
-  const controller = new AbortController();
+  const controller = new AbortController()
 
   const handleMessage = async (event: Event) => {
-    if (controller.signal.aborted) return;
+    if (controller.signal.aborted) return
 
-    const messageEvent = event as MessageEvent<PostMessageData>;
-    const data = messageEvent.data;
+    const messageEvent = event as MessageEvent<PostMessageData>
+    const data = messageEvent.data
 
-    if (data && data.type === "auth") {
+    if (data && data.type === 'auth') {
       // 既に認証済み or 認証処理中の場合はスキップ
       if (isAuthenticated || isAuthenticatingRef.current) {
-        return;
+        return
       }
-      
-      const { email, password } = data.data;
-      // デバウンス処理で認証実行
-      debouncedHandleAuthentication(email, password);
-    }
-  };
 
-  window.addEventListener("message", handleMessage);
+      const { email, password } = data.data
+      // デバウンス処理で認証実行
+      debouncedHandleAuthentication(email, password)
+    }
+  }
+
+  window.addEventListener('message', handleMessage)
   return () => {
-    controller.abort();
-    window.removeEventListener("message", handleMessage);
-  };
-}, [debouncedHandleAuthentication, isAuthenticated]);
+    controller.abort()
+    window.removeEventListener('message', handleMessage)
+  }
+}, [debouncedHandleAuthentication, isAuthenticated])
 
 // 親アプリへの通知関数
 const notifyParentReady = () => {
-  window.parent.postMessage({
-    type: "miniapp_ready",
-    data: { timestamp: new Date().toISOString() }
-  }, "*");
-};
+  window.parent.postMessage(
+    {
+      type: 'miniapp_ready',
+      data: { timestamp: new Date().toISOString() },
+    },
+    '*'
+  )
+}
 
 const notifyAuthSuccess = (userData: { id: string; email: string }) => {
-  window.parent.postMessage({
-    type: "auth_result",
-    data: { success: true, user: userData }
-  }, "*");
-};
+  window.parent.postMessage(
+    {
+      type: 'auth_result',
+      data: { success: true, user: userData },
+    },
+    '*'
+  )
+}
 
 const notifyAuthFailure = (error: string) => {
-  window.parent.postMessage({
-    type: "auth_result",
-    data: { success: false, error }
-  }, "*");
-};
+  window.parent.postMessage(
+    {
+      type: 'auth_result',
+      data: { success: false, error },
+    },
+    '*'
+  )
+}
 ```
 
 **通信プロトコル:**
+
 - **受信**: `{ type: "auth", data: { email, password } }`
 - **送信**: `{ type: "miniapp_ready", data: { timestamp } }`
 - **送信**: `{ type: "auth_result", data: { success: user/error } }`
@@ -277,16 +294,23 @@ const notifyAuthFailure = (error: string) => {
 ### 4-1. 認証関数 (`authenticateUser`)
 
 ```typescript
-export async function authenticateUser(email: string, password: string): Promise<AuthResult & { token?: string, record?: User }> {
-  "use server"
-  
+export async function authenticateUser(
+  email: string,
+  password: string
+): Promise<AuthResult & { token?: string; record?: User }> {
+  'use server'
+
   try {
     // ユーザー認証用のPocketBaseインスタンス（API Rules適用）
-    const pb = new PocketBase(process.env.VITE_POCKETBASE_URL || "http://127.0.0.1:8090")
-    
+    const pb = new PocketBase(
+      process.env.VITE_POCKETBASE_URL || 'http://127.0.0.1:8090'
+    )
+
     // 通常のユーザー認証を実行
-    const authData = await pb.collection('users').authWithPassword(email, password)
-    
+    const authData = await pb
+      .collection('users')
+      .authWithPassword(email, password)
+
     const user: User = {
       id: authData.record.id as string,
       email: authData.record.email as string,
@@ -297,17 +321,17 @@ export async function authenticateUser(email: string, password: string): Promise
       name: (authData.record.name as string) ?? '',
       avatar: (authData.record.avatar as string) ?? '',
     }
-    
+
     return {
       success: true,
       user: { id: authData.record.id, email: authData.record.email },
       token: authData.token,
-      record: user
+      record: user,
     }
   } catch (error: any) {
     return {
       success: false,
-      error: error.response?.message || 'サーバー認証エラーが発生しました'
+      error: error.response?.message || 'サーバー認証エラーが発生しました',
     }
   }
 }
@@ -316,13 +340,18 @@ export async function authenticateUser(email: string, password: string): Promise
 ### 4-2. ユーザー作成関数 (`createUser`)
 
 ```typescript
-export async function createUser(email: string, password: string): Promise<AuthResult & { token?: string, record?: User }> {
-  "use server"
-  
+export async function createUser(
+  email: string,
+  password: string
+): Promise<AuthResult & { token?: string; record?: User }> {
+  'use server'
+
   try {
     // ユーザー作成用のPocketBaseインスタンス（API Rules適用）
-    const pb = new PocketBase(process.env.VITE_POCKETBASE_URL || "http://127.0.0.1:8090")
-    
+    const pb = new PocketBase(
+      process.env.VITE_POCKETBASE_URL || 'http://127.0.0.1:8090'
+    )
+
     // 通常のユーザー作成（API Rulesが適用される）
     const userData = await pb.collection('users').create({
       email,
@@ -333,11 +362,11 @@ export async function createUser(email: string, password: string): Promise<AuthR
 
     // 作成後に認証を実行
     return await authenticateUser(email, password)
-    
   } catch (error: any) {
     return {
       success: false,
-      error: error.response?.message || 'サーバーユーザー作成エラーが発生しました'
+      error:
+        error.response?.message || 'サーバーユーザー作成エラーが発生しました',
     }
   }
 }
@@ -346,13 +375,17 @@ export async function createUser(email: string, password: string): Promise<AuthR
 ### 4-3. リフレッシュ機能
 
 ```typescript
-export async function refreshAuth(token: string): Promise<{ success: boolean, error?: string }> {
-  "use server"
-  
+export async function refreshAuth(
+  token: string
+): Promise<{ success: boolean; error?: string }> {
+  'use server'
+
   try {
-    const pb = new PocketBase(process.env.VITE_POCKETBASE_URL || "http://127.0.0.1:8090")
+    const pb = new PocketBase(
+      process.env.VITE_POCKETBASE_URL || 'http://127.0.0.1:8090'
+    )
     pb.authStore.save(token, null)
-    
+
     if (!pb.authStore.isValid) {
       return { success: false, error: '認証されていません' }
     }
@@ -362,7 +395,9 @@ export async function refreshAuth(token: string): Promise<{ success: boolean, er
   } catch (error: any) {
     return {
       success: false,
-      error: error.response?.message || 'サーバー認証リフレッシュエラーが発生しました'
+      error:
+        error.response?.message ||
+        'サーバー認証リフレッシュエラーが発生しました',
     }
   }
 }
@@ -381,13 +416,16 @@ export async function refreshAuth(token: string): Promise<{ success: boolean, er
 
 // ✅ 新しいServer Functions ベース認証
 const authResult = await window.callServerFunction<AuthResult>(
-  'authenticateUser', email, password
-);
+  'authenticateUser',
+  email,
+  password
+)
 ```
 
 ### 認証状態の特徴
 
 **Server Functions ベースの利点:**
+
 - **ステートレス認証**: フロントエンド側でトークンを永続化せず、セキュリティを向上
 - **サーバーサイド処理**: PocketBase処理をサーバーサイドで実行し、クライアント負荷を軽減
 - **エラーハンドリング**: サーバーサイドでエラー処理を統一
@@ -400,36 +438,42 @@ const authResult = await window.callServerFunction<AuthResult>(
 ```typescript
 // Server Functions 内でのPocketBaseエラー処理
 try {
-  const authData = await pb.collection('users').authWithPassword(email, password)
+  const authData = await pb
+    .collection('users')
+    .authWithPassword(email, password)
   return { success: true, user: authData.record, token: authData.token }
 } catch (error: any) {
   console.error('Server認証失敗:', error)
   return {
     success: false,
-    error: error.response?.message || 'サーバー認証エラーが発生しました'
+    error: error.response?.message || 'サーバー認証エラーが発生しました',
   }
 }
 
 // フロントエンド側でのServer Functions エラー処理
 try {
   const authResult = await window.callServerFunction<AuthResult>(
-    'authenticateUser', email, password
-  );
-  
+    'authenticateUser',
+    email,
+    password
+  )
+
   if (!authResult.success) {
-    throw new Error(authResult.error || "認証に失敗しました");
+    throw new Error(authResult.error || '認証に失敗しました')
   }
-  
+
   // 認証成功処理
 } catch (error) {
-  const errorMessage = error instanceof Error ? error.message : "認証エラーが発生しました";
-  setAuthStatus("error");
-  setAuthMessage(`認証失敗: ${errorMessage}`);
-  notifyAuthFailure(errorMessage);
+  const errorMessage =
+    error instanceof Error ? error.message : '認証エラーが発生しました'
+  setAuthStatus('error')
+  setAuthMessage(`認証失敗: ${errorMessage}`)
+  notifyAuthFailure(errorMessage)
 }
 ```
 
 **エラーハンドリングの特徴:**
+
 - **サーバーサイドエラー処理**: PocketBaseエラーをServer Functions内で適切にキャッチ
 - **クライアントサイド統一処理**: Server Functions のレスポンス形式を統一してエラー処理
 - **ユーザーフレンドリーメッセージ**: 技術的エラーをユーザー向けメッセージに変換
@@ -472,11 +516,11 @@ import { useMiniAppAuth } from "@/features/auth";
 
 function MyComponent() {
   const { isAuthenticated, user, authStatus } = useMiniAppAuth();
-  
+
   if (!isAuthenticated) {
     return <div>認証が必要です</div>;
   }
-  
+
   return <div>こんにちは、{user?.email}さん</div>;
 }
 
@@ -486,7 +530,7 @@ const authenticateUser = async (email: string, password: string) => {
     const result = await window.callServerFunction<AuthResult>(
       'authenticateUser', email, password
     );
-    
+
     if (result.success) {
       console.log('認証成功:', result.user);
     } else {
@@ -512,18 +556,18 @@ const fetchMiniAppData = async () => {
 
 ```typescript
 // ❌ PocketBaseの直接インポートと使用
-import PocketBase from 'pocketbase';
-const pb = new PocketBase('...');
+import PocketBase from 'pocketbase'
+const pb = new PocketBase('...')
 
 // ❌ 認証フローのファイル変更
 // App.tsx, src/features/auth/model/useAuth.ts, main.tsx, src/features/auth/api/actions.ts の変更
 
 // ❌ クライアント側でのPocketBase直接操作
-const pb = new PocketBase('...');
-await pb.collection('users').authWithPassword(email, password); // 危険
+const pb = new PocketBase('...')
+await pb.collection('users').authWithPassword(email, password) // 危険
 
 // ❌ 認証状態の手動操作
-setIsAuthenticated(true); // useMiniAppAuth内部でのみ許可
+setIsAuthenticated(true) // useMiniAppAuth内部でのみ許可
 ```
 
 ## デバッグとログ
@@ -548,6 +592,7 @@ Server ユーザー作成成功: user@example.com
 ```
 
 **ログの特徴:**
+
 - **多重実行防止**: 実行中フラグの状態をログで確認可能
 - **デバウンス処理**: 連続呼び出し防止の動作を確認可能
 - **自動ユーザー作成**: 認証失敗時の自動フォールバック処理
@@ -556,18 +601,21 @@ Server ユーザー作成成功: user@example.com
 ### トラブルシューティング
 
 **認証が進まない場合:**
+
 1. 親アプリからの`postMessage`が送信されているか確認
 2. Server Functions エンドポイント (`/actions`) の動作状況確認
 3. PocketBaseサーバーの接続状況確認（Server Functions 経由）
 4. コンソールログで多重実行防止やデバウンス処理の動作確認
 
 **認証エラーが発生する場合:**
+
 1. エラーメッセージの詳細を確認（Server Functions のレスポンスを確認）
 2. 認証情報（email/password）の妥当性確認
 3. PocketBaseサーバーのログ確認（Server Functions 内部処理）
 4. 自動ユーザー作成処理の動作確認
 
 **Server Functions 関連のトラブル:**
+
 1. `/actions` エンドポイントの応答確認
 2. `window.callServerFunction` の動作確認
 3. Server Functions 内でのPocketBase接続エラー確認

@@ -115,41 +115,52 @@ npm run lint
 ### 2. AI統合機能（新機能）
 
 #### fal.ai統合（画像・動画・音声生成）
+
 **FSD準拠の実装例**：
+
 ```typescript
 // 1. 共通ライブラリを利用したServer Action作成
 // src/features/image-generation/api/generateImage.ts
-"use server";
-import { generateImage } from "@/shared/server/fal.server";
+'use server'
+import { generateImage } from '@/shared/server/fal.server'
 
-export async function generateImageAction(prompt: string, options?: ImageOptions) {
-  return await generateImage(prompt, options);
+export async function generateImageAction(
+  prompt: string,
+  options?: ImageOptions
+) {
+  return await generateImage(prompt, options)
 }
 
 // 2. フロントエンドからの利用
 // 🚨 注意: 実際の利用には entry.rsc.tsx への登録が必要
-import { generateImageAction } from "@/features/image-generation/api/generateImage";
-const result = await generateImageAction("Beautiful sunset landscape");
+import { generateImageAction } from '@/features/image-generation/api/generateImage'
+const result = await generateImageAction('Beautiful sunset landscape')
 ```
 
 #### OpenAI API統合
+
 **FSD準拠の実装例**：
+
 ```typescript
 // 1. 共通ライブラリを利用したServer Action作成
 // src/features/chat/api/createCompletion.ts
-"use server";
-import { createOpenAIInstance, OPENAI_CONFIG } from "@/shared/server/openai.server";
+'use server'
+import {
+  createOpenAIInstance,
+  OPENAI_CONFIG,
+} from '@/shared/server/openai.server'
 
 export async function createChatCompletionAction(messages: ChatMessage[]) {
-  const openai = await createOpenAIInstance();
+  const openai = await createOpenAIInstance()
   return await openai.chat.completions.create({
     ...OPENAI_CONFIG.CHAT_DEFAULTS,
-    messages
-  });
+    messages,
+  })
 }
 ```
 
 #### Mastra AI Agent Framework
+
 - Anthropic Claude Codeとの統合
 - AI Agentの開発・実行基盤
 - `@anthropic-ai/claude-code` パッケージ使用
@@ -157,14 +168,15 @@ export async function createChatCompletionAction(messages: ChatMessage[]) {
 ### 3. Server Actions（FSD準拠の外部API統合）
 
 **正しい実装パターン**：
+
 ```typescript
 // 機能固有のServer Actions（FSD準拠）
 // src/features/image-generation/api/generateImage.ts
-import { generateImage } from "@/shared/server/fal.server"; // 共通ライブラリ利用
+import { generateImage } from '@/shared/server/fal.server' // 共通ライブラリ利用
 
 // エンティティ固有のServer Actions（FSD準拠）
 // src/entities/user/api/getUser.ts
-import { pb } from "@/shared/lib/pocketbase"; // クライアントサイド専用
+import { pb } from '@/shared/lib/pocketbase' // クライアントサイド専用
 
 // 詳細な実装方法は docs/SERVER_FUNCTIONS_GUIDE.md を参照
 ```
@@ -209,7 +221,7 @@ NEXT_PUBLIC_POCKETBASE_URL=http://127.0.0.1:8090
 ### 🚨 変更不可ファイル（詳細は docs/protected-files.md 参照）
 
 - **`src/shared/lib/pocketbase.ts`** - DB接続設定（変更厳禁）
-- **`src/features/auth/`** - 認証システム（機能保持必須）  
+- **`src/features/auth/`** - 認証システム（機能保持必須）
 - **`src/shared/server/`** - 外部API基盤（拡張推奨、削除注意）
 
 ### 基本開発ルール
@@ -237,6 +249,7 @@ NEXT_PUBLIC_POCKETBASE_URL=http://127.0.0.1:8090
 ## テンプレートの特徴
 
 ### 含まれる機能
+
 - ✅ **認証システム**: iframe対応 + PocketBase統合
 - ✅ **UI基盤**: shadcn/ui + Tailwind CSS
 - ✅ **AI統合**: fal.ai（画像・動画・音声生成）+ OpenAI API
@@ -246,6 +259,7 @@ NEXT_PUBLIC_POCKETBASE_URL=http://127.0.0.1:8090
 - ✅ **開発体験**: ESLint + 型チェック + ビルド最適化
 
 ### 拡張可能な部分
+
 - ページ・コンポーネントの追加
 - AI機能の追加・カスタマイズ（fal.ai、OpenAI等）
 - 外部APIサービスの追加（Server Actions経由）
@@ -255,20 +269,23 @@ NEXT_PUBLIC_POCKETBASE_URL=http://127.0.0.1:8090
 ## 利用可能なUI コンポーネント
 
 現在インストール済み（shadcn/ui）:
+
 - **Alert**: アラート・通知表示コンポーネント
-- **Badge**: バッジ・ラベル表示コンポーネント  
+- **Badge**: バッジ・ラベル表示コンポーネント
 - **Button**: ボタンコンポーネント（各種バリアント対応）
 - **Card**: カード型レイアウトコンポーネント（Header, Content, Description, Title対応）
 - **NavigationMenu**: ナビゲーションメニューコンポーネント
 - **Separator**: セパレーター・区切り線コンポーネント
 
 shadcn/ui設定:
+
 - **Style**: new-york
-- **Base Color**: neutral  
+- **Base Color**: neutral
 - **CSS Variables**: 有効
 - **RSC**: React Server Components対応
 
 追加時:
+
 ```bash
 npx shadcn@latest add <component-name>
 ```

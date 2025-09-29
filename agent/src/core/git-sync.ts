@@ -1,29 +1,31 @@
-import { exec } from "child_process";
-import { promisify } from "util";
-import { existsSync, readFileSync } from "fs";
-import path from "path";
-import { query } from "@anthropic-ai/claude-code";
-import type { Options } from "@anthropic-ai/claude-code";
-import { fetchAndSaveCollections } from "../utils/pocketbase-collections";
-import { createClient } from "@supabase/supabase-js";
+import { exec } from 'child_process'
+import { promisify } from 'util'
+import { existsSync, readFileSync } from 'fs'
+import path from 'path'
+import { query } from '@anthropic-ai/claude-code'
+import type { Options } from '@anthropic-ai/claude-code'
+import { fetchAndSaveCollections } from '../utils/pocketbase-collections'
+import { createClient } from '@supabase/supabase-js'
 import {
   getMiniAppGitCredentials,
   buildGiteaCloneUrl,
-  checkMiniAppGitAuthExists
-} from "./git-auth";
+  checkMiniAppGitAuthExists,
+} from './git-auth'
 
-const execAsync = promisify(exec);
+const execAsync = promisify(exec)
 
 // Initialize Supabase client for Git authentication
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+const supabaseUrl = process.env.SUPABASE_URL
+const supabaseAnonKey = process.env.SUPABASE_ANON_KEY
 
-let supabase: ReturnType<typeof createClient> | null = null;
+let supabase: ReturnType<typeof createClient> | null = null
 
 if (supabaseUrl && supabaseAnonKey) {
-  supabase = createClient(supabaseUrl, supabaseAnonKey);
+  supabase = createClient(supabaseUrl, supabaseAnonKey)
 } else {
-  console.warn("⚠️ SUPABASE_URL or SUPABASE_ANON_KEY not set - Git authentication will be skipped");
+  console.warn(
+    '⚠️ SUPABASE_URL or SUPABASE_ANON_KEY not set - Git authentication will be skipped'
+  )
 }
 
 /**
@@ -34,24 +36,24 @@ async function execGitCommand(
   cwd: string
 ): Promise<{ stdout: string; stderr: string }> {
   try {
-    console.log(`🔧 Executing: git ${command} in ${cwd}`);
+    console.log(`🔧 Executing: git ${command} in ${cwd}`)
     const { stdout, stderr } = await execAsync(`git ${command}`, {
       cwd,
       timeout: 60000, // 60秒タイムアウト
-    });
+    })
 
     if (stdout) {
-      console.log(`📝 Git output: ${stdout.trim()}`);
+      console.log(`📝 Git output: ${stdout.trim()}`)
     }
 
-    if (stderr && !stderr.includes("warning:")) {
-      console.log(`⚠️ Git stderr: ${stderr.trim()}`);
+    if (stderr && !stderr.includes('warning:')) {
+      console.log(`⚠️ Git stderr: ${stderr.trim()}`)
     }
 
-    return { stdout, stderr };
+    return { stdout, stderr }
   } catch (error: any) {
-    console.error(`❌ Git command failed: ${command}`, error);
-    throw new Error(`Git command failed: ${error.message}`);
+    console.error(`❌ Git command failed: ${command}`, error)
+    throw new Error(`Git command failed: ${error.message}`)
   }
 }
 
@@ -59,22 +61,22 @@ async function execGitCommand(
  * Gitリポジトリの初期化
  */
 async function ensureGitRepo(repoPath: string): Promise<void> {
-  const gitDir = path.join(repoPath, ".git");
+  const gitDir = path.join(repoPath, '.git')
 
   if (!existsSync(gitDir)) {
-    console.log(`📦 Initializing git repository at ${repoPath}`);
-    await execGitCommand("init", repoPath);
+    console.log(`📦 Initializing git repository at ${repoPath}`)
+    await execGitCommand('init', repoPath)
 
     // デフォルトのユーザー設定（環境変数から取得可能）
-    const userName = process.env.GIT_USER_NAME || "MiniApp Agent";
-    const userEmail = process.env.GIT_USER_EMAIL || "agent@miniapp.local";
+    const userName = process.env.GIT_USER_NAME || 'MiniApp Agent'
+    const userEmail = process.env.GIT_USER_EMAIL || 'agent@miniapp.local'
 
-    await execGitCommand(`config user.name "${userName}"`, repoPath);
-    await execGitCommand(`config user.email "${userEmail}"`, repoPath);
+    await execGitCommand(`config user.name "${userName}"`, repoPath)
+    await execGitCommand(`config user.email "${userEmail}"`, repoPath)
 
-    console.log(`✅ Git repository initialized`);
+    console.log(`✅ Git repository initialized`)
   } else {
-    console.log(`📦 Git repository already exists at ${repoPath}`);
+    console.log(`📦 Git repository already exists at ${repoPath}`)
   }
 }
 
@@ -90,74 +92,92 @@ async function ensureRemote(
 ): Promise<boolean> {
   try {
     // 既存のリモートをチェック
-    const { stdout } = await execGitCommand("remote -v", repoPath);
+    const { stdout } = await execGitCommand('remote -v', repoPath)
 
     // upstreamがない場合は追加
-    if (!stdout.includes("upstream")) {
-      console.log(`📝 Adding upstream template repository...`);
+    if (!stdout.includes('upstream')) {
+      console.log(`📝 Adding upstream template repository...`)
       await execGitCommand(
         `remote add upstream https://github.com/titabash/miniapp-template.git`,
         repoPath
-      );
-      console.log(`✅ Upstream template repository added`);
+      )
+      console.log(`✅ Upstream template repository added`)
     }
 
     // originが以下の場合は必ず設定/更新：
     // - 未設定
     // - gitea:3000（デフォルト値）
     // - github.com（テンプレートリポジトリ - pushの誤爆防止）
-    const hasOrigin = stdout.includes("origin");
-    const originNeedsUpdate = !hasOrigin ||
-                             stdout.includes("gitea:3000") ||
-                             stdout.includes("github.com");
+    const hasOrigin = stdout.includes('origin')
+    const originNeedsUpdate =
+      !hasOrigin ||
+      stdout.includes('gitea:3000') ||
+      stdout.includes('github.com')
 
     if (originNeedsUpdate) {
       // Supabaseクライアントが利用可能かチェック
       if (!supabase) {
-        console.error(`❌ Supabase client not available, cannot setup Git remote`);
-        return false;
+        console.error(
+          `❌ Supabase client not available, cannot setup Git remote`
+        )
+        return false
       }
 
       try {
-        console.log(`🔐 Setting up Git remote for miniapp ${miniAppId}...`);
+        console.log(`🔐 Setting up Git remote for miniapp ${miniAppId}...`)
 
-        if (stdout.includes("github.com") && hasOrigin) {
-          console.warn(`⚠️  Origin points to GitHub template - updating to prevent accidental pushes`);
+        if (stdout.includes('github.com') && hasOrigin) {
+          console.warn(
+            `⚠️  Origin points to GitHub template - updating to prevent accidental pushes`
+          )
         }
 
         // miniappsテーブルからgit_urlを取得（型エラー回避のためas anyを使用）
         const { data: miniapp, error: miniappError } = await (supabase as any)
-          .from("miniapps")
-          .select("git_url")
-          .eq("id", miniAppId)
-          .single();
+          .from('miniapps')
+          .select('git_url')
+          .eq('id', miniAppId)
+          .single()
 
         if (miniappError) {
-          console.error(`❌ Failed to get miniapp data: ${miniappError.message}`);
-          return false;
+          console.error(
+            `❌ Failed to get miniapp data: ${miniappError.message}`
+          )
+          return false
         }
 
         // git_urlの存在チェック
-        const giteaUrl = miniapp?.git_url ?? "http://gitea:3000";
+        const giteaUrl = miniapp?.git_url ?? 'http://gitea:3000'
 
         if (!miniapp?.git_url) {
-          console.warn(`⚠️  Git URL not configured for miniapp (${miniAppId}), using default: ${giteaUrl}`);
-          console.warn(`   This will be updated when git_url is properly configured`);
+          console.warn(
+            `⚠️  Git URL not configured for miniapp (${miniAppId}), using default: ${giteaUrl}`
+          )
+          console.warn(
+            `   This will be updated when git_url is properly configured`
+          )
         } else {
-          console.log(`📦 Using Git URL from database: ${giteaUrl}`);
+          console.log(`📦 Using Git URL from database: ${giteaUrl}`)
         }
 
         // Git認証情報の存在確認
-        const authExists = await checkMiniAppGitAuthExists(supabase, miniAppId);
+        const authExists = await checkMiniAppGitAuthExists(supabase, miniAppId)
 
         if (!authExists) {
-          console.error(`❌ No Git authentication found for miniapp ${miniAppId}`);
-          console.error(`   Cannot setup Git remote without authentication credentials`);
-          return false;
+          console.error(
+            `❌ No Git authentication found for miniapp ${miniAppId}`
+          )
+          console.error(
+            `   Cannot setup Git remote without authentication credentials`
+          )
+          return false
         }
 
         // 認証情報を取得
-        const gitCredentials = await getMiniAppGitCredentials(supabase, miniAppId);
+        const gitCredentials = await getMiniAppGitCredentials(
+          supabase,
+          miniAppId
+        )
 
         // 認証情報付きのClone URLを構築
         const cloneUrlWithAuth = buildGiteaCloneUrl(
@@ -165,35 +185,42 @@ async function ensureRemote(
           gitCredentials.username,
           gitCredentials.password,
           gitCredentials.repoName
-        );
+        )
 
         // originリモートを設定/更新（認証情報を含むため、詳細ログは避ける）
         if (hasOrigin) {
-          console.log(`🔄 Updating origin remote...`);
+          console.log(`🔄 Updating origin remote...`)
           // execGitCommandのログ出力を抑制するため、直接execAsyncを使用
-          await execAsync(`git remote set-url origin "${cloneUrlWithAuth}"`, { cwd: repoPath });
+          await execAsync(`git remote set-url origin "${cloneUrlWithAuth}"`, {
+            cwd: repoPath,
+          })
         } else {
-          console.log(`➕ Adding origin remote...`);
+          console.log(`➕ Adding origin remote...`)
           // execGitCommandのログ出力を抑制するため、直接execAsyncを使用
-          await execAsync(`git remote add origin "${cloneUrlWithAuth}"`, { cwd: repoPath });
+          await execAsync(`git remote add origin "${cloneUrlWithAuth}"`, {
+            cwd: repoPath,
+          })
         }
 
         // セキュリティのため、完全なURLはログに出力しない
-        const urlParts = new URL(giteaUrl);
-        console.log(`✅ Origin remote configured: ${urlParts.origin}/${gitCredentials.username}/${gitCredentials.repoName}`);
-
+        const urlParts = new URL(giteaUrl)
+        console.log(
+          `✅ Origin remote configured: ${urlParts.origin}/${gitCredentials.username}/${gitCredentials.repoName}`
+        )
       } catch (gitAuthError) {
-        console.error(`❌ Failed to setup Git remote: ${gitAuthError}`);
-        return false;
+        console.error(`❌ Failed to setup Git remote: ${gitAuthError}`)
+        return false
       }
     } else {
       // originが正式なgit_url（gitea:3000でもgithub.comでもない）の場合はスキップ
-      console.log(`✅ Origin remote already properly configured, skipping update`);
+      console.log(
+        `✅ Origin remote already properly configured, skipping update`
+      )
     }
-    return true;
+    return true
   } catch (error) {
-    console.error(`⚠️ Failed to check/setup remote: ${error}`);
-    return false;
+    console.error(`⚠️ Failed to check/setup remote: ${error}`)
+    return false
   }
 }
 
@@ -202,11 +229,17 @@ async function ensureRemote(
  */
 async function getConflictedFiles(repoPath: string): Promise<string[]> {
   try {
-    const { stdout } = await execGitCommand("diff --name-only --diff-filter=U", repoPath);
-    return stdout.trim().split('\n').filter(file => file.length > 0);
+    const { stdout } = await execGitCommand(
+      'diff --name-only --diff-filter=U',
+      repoPath
+    )
+    return stdout
+      .trim()
+      .split('\n')
+      .filter((file) => file.length > 0)
   } catch (error) {
-    console.error("Failed to get conflicted files:", error);
-    return [];
+    console.error('Failed to get conflicted files:', error)
+    return []
   }
 }
 
@@ -217,15 +250,17 @@ async function resolveConflictsWithAI(
   repoPath: string,
   conflictedFiles: string[]
 ): Promise<boolean> {
-  console.log(`🤖 Using AI to resolve conflicts in ${conflictedFiles.length} files`);
+  console.log(
+    `🤖 Using AI to resolve conflicts in ${conflictedFiles.length} files`
+  )
 
   // コンフリクトファイルの内容を読み込み
-  let conflictDetails = "";
+  let conflictDetails = ''
   for (const file of conflictedFiles) {
-    const filePath = path.join(repoPath, file);
+    const filePath = path.join(repoPath, file)
     if (existsSync(filePath)) {
-      const content = readFileSync(filePath, 'utf-8');
-      conflictDetails += `\n\nFile: ${file}\n${content}`;
+      const content = readFileSync(filePath, 'utf-8')
+      conflictDetails += `\n\nFile: ${file}\n${content}`
     }
   }
 
@@ -244,47 +279,43 @@ ${conflictedFiles.join('\n')}
 詳細:
 ${conflictDetails}
 
-各ファイルを修正して、コンフリクトを解消してください。`;
+各ファイルを修正して、コンフリクトを解消してください。`
 
   // Claude Code実行オプション
   const options: Options = {
     maxTurns: 10,
-    model: process.env.CLAUDE_MODEL || "claude-sonnet-4",
+    model: process.env.CLAUDE_MODEL || 'claude-sonnet-4',
     cwd: repoPath,
-    permissionMode: "acceptEdits",
-    pathToClaudeCodeExecutable: "/toolbox/agent/node_modules/@anthropic-ai/claude-code/cli.js",
-    allowedTools: [
-      "Read",
-      "Edit",
-      "MultiEdit",
-      "Write",
-    ],
-  };
+    permissionMode: 'acceptEdits',
+    pathToClaudeCodeExecutable:
+      '/toolbox/agent/node_modules/@anthropic-ai/claude-code/cli.js',
+    allowedTools: ['Read', 'Edit', 'MultiEdit', 'Write'],
+  }
 
   try {
-    console.log("🔧 Starting AI conflict resolution...");
+    console.log('🔧 Starting AI conflict resolution...')
     const queryIterator = query({
       prompt: prompt,
       options: options,
-    });
+    })
 
-    let success = false;
+    let success = false
     for await (const message of queryIterator) {
-      console.log(`📝 AI: ${message.type}`);
+      console.log(`📝 AI: ${message.type}`)
 
       // result messageで完了を確認
-      if (message.type === "result" && "subtype" in message) {
-        if (message.subtype === "success") {
-          success = true;
-          console.log("✅ AI successfully resolved conflicts");
+      if (message.type === 'result' && 'subtype' in message) {
+        if (message.subtype === 'success') {
+          success = true
+          console.log('✅ AI successfully resolved conflicts')
         }
       }
     }
 
-    return success;
+    return success
   } catch (error) {
-    console.error("❌ AI conflict resolution failed:", error);
-    return false;
+    console.error('❌ AI conflict resolution failed:', error)
+    return false
   }
 }
 
@@ -294,115 +325,105 @@ ${conflictDetails}
 export async function executeGitCommitWithConflictResolution(
   miniAppId: string
 ): Promise<{
-  commitHash: string | null;
-  message: string;
-  hadConflicts: boolean;
-  success: boolean;
-  error?: string;
+  commitHash: string | null
+  message: string
+  hadConflicts: boolean
+  success: boolean
+  error?: string
 }> {
-  console.log(
-    `🚀 Starting git commit and push for miniapp ${miniAppId}...`
-  );
+  console.log(`🚀 Starting git commit and push for miniapp ${miniAppId}...`)
 
   try {
-    const repoPath = "/app";
+    const repoPath = '/app'
 
     // ディレクトリの存在確認
     if (!existsSync(repoPath)) {
-      throw new Error(`Source directory not found: ${repoPath}`);
+      throw new Error(`Source directory not found: ${repoPath}`)
     }
 
-    console.log(`📦 Creating commit for miniapp ${miniAppId}`);
+    console.log(`📦 Creating commit for miniapp ${miniAppId}`)
 
     // Gitリポジトリの初期化
-    await ensureGitRepo(repoPath);
+    await ensureGitRepo(repoPath)
 
     // PocketBaseコレクション情報を取得して保存（Git add前）
-    console.log("📦 Fetching PocketBase collections before Git commit...");
-    await fetchAndSaveCollections();
+    console.log('📦 Fetching PocketBase collections before Git commit...')
+    await fetchAndSaveCollections()
 
     // すべての変更をステージング（pc_collection.jsonも含まれる）
-    await execGitCommand("add .", repoPath);
+    await execGitCommand('add .', repoPath)
 
     // コミットの作成（変更がある場合のみ）
-    let commitHash = "";
-    const timestamp = new Date().toISOString();
-    const commitMessage = `Update miniapp ${miniAppId} - ${timestamp}`;
+    let commitHash = ''
+    const timestamp = new Date().toISOString()
+    const commitMessage = `Update miniapp ${miniAppId} - ${timestamp}`
 
     try {
-      await execGitCommand(
-        `commit -m "${commitMessage}"`,
-        repoPath
-      );
+      await execGitCommand(`commit -m "${commitMessage}"`, repoPath)
 
-      console.log(`✅ Created local commit`);
+      console.log(`✅ Created local commit`)
     } catch (error: any) {
-      if (error.message.includes("nothing to commit")) {
-        console.log(`ℹ️ No changes to commit`);
+      if (error.message.includes('nothing to commit')) {
+        console.log(`ℹ️ No changes to commit`)
       } else {
-        throw error;
+        throw error
       }
     }
 
     // 最終的なコミットハッシュを取得
-    const { stdout: hash } = await execGitCommand(
-      "rev-parse HEAD",
-      repoPath
-    );
-    commitHash = hash.trim();
+    const { stdout: hash } = await execGitCommand('rev-parse HEAD', repoPath)
+    commitHash = hash.trim()
 
     // リモートへのプッシュ
     try {
-      await execGitCommand("push origin main", repoPath);
-      console.log(`📤 Pushed to remote`);
+      await execGitCommand('push origin main', repoPath)
+      console.log(`📤 Pushed to remote`)
     } catch (error) {
-      console.error(`⚠️ Failed to push to remote: ${error}`);
-      console.log(`ℹ️ Changes are committed locally`);
+      console.error(`⚠️ Failed to push to remote: ${error}`)
+      console.log(`ℹ️ Changes are committed locally`)
     }
 
     console.log(
       `✅ Git operations completed successfully with commit: ${commitHash}`
-    );
+    )
 
     return {
       commitHash,
       message: commitMessage,
       hadConflicts: false,
-      success: true
-    };
+      success: true,
+    }
   } catch (error: any) {
-    console.error("❌ Git commit failed:", error);
-    console.error("⚠️ Returning error status but not throwing");
+    console.error('❌ Git commit failed:', error)
+    console.error('⚠️ Returning error status but not throwing')
 
     // Return error status instead of throwing
     return {
       commitHash: null,
-      message: "",
+      message: '',
       hadConflicts: false,
       success: false,
-      error: error.message || String(error)
-    };
+      error: error.message || String(error),
+    }
   }
 }
 
 /**
  * シンプルなGitコミット（コンフリクト解消なし）
  */
-export async function executeGitCommit(
-  miniAppId: string
-): Promise<{
-  commitHash: string | null;
-  message: string;
-  success: boolean;
-  error?: string;
+export async function executeGitCommit(miniAppId: string): Promise<{
+  commitHash: string | null
+  message: string
+  success: boolean
+  error?: string
 }> {
-  const result = await executeGitCommitWithConflictResolution(miniAppId);
+  const result = await executeGitCommitWithConflictResolution(miniAppId)
   return {
     commitHash: result.commitHash,
     message: result.message,
     success: result.success,
-    error: result.error
-  };
+    error: result.error,
+  }
 }
 
 /**
@@ -414,19 +435,19 @@ export async function executeVersionedRcloneCopy(
   _version: number
 ): Promise<{
   paths: {
-    reactCodePath?: string;
-    pocketbaseDataPath?: string;
-  };
+    reactCodePath?: string
+    pocketbaseDataPath?: string
+  }
 }> {
   console.warn(
-    "⚠️ executeVersionedRcloneCopy is deprecated. Using executeGitCommit instead."
-  );
+    '⚠️ executeVersionedRcloneCopy is deprecated. Using executeGitCommit instead.'
+  )
 
   // Git commitを実行
-  const result = await executeGitCommit(miniAppId);
+  const result = await executeGitCommit(miniAppId)
 
   // エラーがあってもパスを返す（commitHashがnullの場合は代替値を使用）
-  const hashOrFallback = result.commitHash || "no-commit";
+  const hashOrFallback = result.commitHash || 'no-commit'
 
   // 後方互換性のため、旧形式のレスポンスを返す
   return {
@@ -434,5 +455,5 @@ export async function executeVersionedRcloneCopy(
       reactCodePath: `${miniAppId}/commit/${hashOrFallback}/`,
       pocketbaseDataPath: `${miniAppId}/commit/${hashOrFallback}/pb_migrations/`,
     },
-  };
+  }
 }

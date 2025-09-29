@@ -33,17 +33,20 @@ frontend-next/
 ## Key Features
 
 ### Authentication System
+
 - **PostMessage Integration**: Receives auth from parent app via iframe
 - **PocketBase Auth**: Complete authentication with automatic token refresh
 - **Persistent State**: LocalStorage + Cookie dual persistence
 - **Error Handling**: Comprehensive auth error states and retry logic
 
 ### Server Actions
+
 - **AI Services**: fal.ai (image/video/audio), OpenAI (chat/reasoning)
 - **Database**: PocketBase CRUD operations
 - **Type Safe**: Full TypeScript support with proper error handling
 
 ### Development Commands
+
 ```bash
 # Development
 npm run dev
@@ -72,6 +75,7 @@ This Next.js version maintains 100% compatibility with the original Vite impleme
 - ✅ **Same postMessage** - Parent app integration unchanged
 
 ### Key Differences
+
 - **Routing**: React Router → Next.js App Router
 - **RSC**: Vite RSC plugin → Native Next.js RSC
 - **Server Functions**: Custom `/actions` endpoint → Server Actions
@@ -80,13 +84,15 @@ This Next.js version maintains 100% compatibility with the original Vite impleme
 ## Environment Variables
 
 Copy from the original Vite version:
+
 - `OPENAI_API_KEY` - OpenAI API access
-- `FAL_KEY` - fal.ai API access  
+- `FAL_KEY` - fal.ai API access
 - `POCKETBASE_URL` - PocketBase server URL (default: http://127.0.0.1:8090)
 
 ## Path Aliases
 
 Maintained from original:
+
 - `@/*` → `./src/*`
 - `@/shared` → `./src/shared`
 - `@/app` → `./src/app`

@@ -1,10 +1,6 @@
 {
   "compilerOptions": {
-    "lib": [
-      "dom",
-      "dom.iterable",
-      "es2020"
-    ],
+    "lib": ["dom", "dom.iterable", "es2020"],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
@@ -23,42 +19,18 @@
     ],
     "baseUrl": ".",
     "paths": {
-      "@/*": [
-        "./src/*"
-      ],
-      "@/shared": [
-        "./src/shared"
-      ],
-      "@/shared/ui": [
-        "./src/shared/ui"
-      ],
-      "@/shared/lib": [
-        "./src/shared/lib"
-      ],
-      "@/app": [
-        "./src/app"
-      ],
-      "@/pages": [
-        "./src/pages"
-      ],
-      "@/features": [
-        "./src/features"
-      ],
-      "@/entities": [
-        "./src/entities"
-      ]
+      "@/*": ["./src/*"],
+      "@/shared": ["./src/shared"],
+      "@/shared/ui": ["./src/shared/ui"],
+      "@/shared/lib": ["./src/shared/lib"],
+      "@/app": ["./src/app"],
+      "@/pages": ["./src/pages"],
+      "@/features": ["./src/features"],
+      "@/entities": ["./src/entities"]
     },
     "target": "es2020",
     "forceConsistentCasingInFileNames": true
   },
-  "include": [
-    "**/*.ts",
-    "**/*.tsx",
-    "next-env.d.ts",
-    ".next/types/**/*.ts"
-  ],
-  "exclude": [
-    "node_modules",
-    ".next"
-  ]
+  "include": ["**/*.ts", "**/*.tsx", "next-env.d.ts", ".next/types/**/*.ts"],
+  "exclude": ["node_modules", ".next"]
 }

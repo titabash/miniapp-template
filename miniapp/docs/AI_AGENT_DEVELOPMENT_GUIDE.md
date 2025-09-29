@@ -40,9 +40,9 @@ AIエージェント開発で使用する以下の環境変数は既に設定済
 
 ```typescript
 // ✅ 推奨：@mastra/coreを使用
-import { Agent } from "@mastra/core/agent";
-import { createStep, createWorkflow } from "@mastra/core/workflows";
-import { Mastra } from "@mastra/core/mastra";
+import { Agent } from '@mastra/core/agent'
+import { createStep, createWorkflow } from '@mastra/core/workflows'
+import { Mastra } from '@mastra/core/mastra'
 
 // ❌ 非推奨：Mastraサーバーの使用
 // import { MastraServer } from "@mastra/server";
@@ -53,63 +53,63 @@ import { Mastra } from "@mastra/core/mastra";
 ### 1. 基本エージェント定義
 
 ```typescript
-import { openai } from "@ai-sdk/openai";
-import { Agent } from "@mastra/core/agent";
+import { openai } from '@ai-sdk/openai'
+import { Agent } from '@mastra/core/agent'
 
 export const researchAgent = new Agent({
-  name: "research-agent",
-  description: "データ収集と分析を行うエージェント",
+  name: 'research-agent',
+  description: 'データ収集と分析を行うエージェント',
   instructions: `
     あなたは専門的なリサーチエージェントです。
     - 正確な情報収集を行う
     - 分析結果を構造化して提供する
     - 信頼できるソースのみを使用する
   `,
-  model: openai("gpt-5"),
-});
+  model: openai('gpt-5'),
+})
 ```
 
 ### 2. ツール統合エージェント
 
 ```typescript
-import { createTool } from "@mastra/core/tools";
+import { createTool } from '@mastra/core/tools'
 
 const searchTool = createTool({
-  id: "web-search",
-  description: "ウェブ検索を実行",
+  id: 'web-search',
+  description: 'ウェブ検索を実行',
   inputSchema: z.object({
     query: z.string(),
   }),
   execute: async ({ context }) => {
     // 検索ロジック実装
   },
-});
+})
 
 export const researchAgentWithTools = new Agent({
-  name: "research-agent-with-tools",
-  instructions: "ツールを使用してリサーチを行うエージェント",
-  model: openai("gpt-5"),
+  name: 'research-agent-with-tools',
+  instructions: 'ツールを使用してリサーチを行うエージェント',
+  model: openai('gpt-5'),
   tools: {
     webSearch: searchTool,
   },
-});
+})
 ```
 
 ### 3. ワークフロー統合エージェント
 
 ```typescript
 export const comprehensiveAgent = new Agent({
-  name: "comprehensive-agent",
-  description: "複合的なタスクを実行するエージェント",
-  instructions: "ワークフローとツールを組み合わせて複雑なタスクを実行",
-  model: openai("gpt-5"),
+  name: 'comprehensive-agent',
+  description: '複合的なタスクを実行するエージェント',
+  instructions: 'ワークフローとツールを組み合わせて複雑なタスクを実行',
+  model: openai('gpt-5'),
   tools: {
     searchTool,
   },
   workflows: {
     analysisWorkflow,
   },
-});
+})
 ```
 
 ## ワークフロー開発パターン
@@ -117,12 +117,12 @@ export const comprehensiveAgent = new Agent({
 ### 1. 基本ワークフロー
 
 ```typescript
-import { createWorkflow, createStep } from "@mastra/core/workflows";
-import { z } from "zod";
+import { createWorkflow, createStep } from '@mastra/core/workflows'
+import { z } from 'zod'
 
 const dataProcessingStep = createStep({
-  id: "data-processing",
-  description: "データを処理して分析結果を生成",
+  id: 'data-processing',
+  description: 'データを処理して分析結果を生成',
   inputSchema: z.object({
     rawData: z.string(),
   }),
@@ -136,15 +136,15 @@ const dataProcessingStep = createStep({
     // データ処理ロジック
     return {
       processedData: {
-        summary: "分析結果のサマリー",
-        insights: ["洞察1", "洞察2"],
+        summary: '分析結果のサマリー',
+        insights: ['洞察1', '洞察2'],
       },
-    };
+    }
   },
-});
+})
 
 export const dataAnalysisWorkflow = createWorkflow({
-  id: "data-analysis-workflow",
+  id: 'data-analysis-workflow',
   inputSchema: z.object({
     rawData: z.string(),
   }),
@@ -156,15 +156,15 @@ export const dataAnalysisWorkflow = createWorkflow({
   }),
 })
   .then(dataProcessingStep)
-  .commit();
+  .commit()
 ```
 
 ### 2. エージェント統合ワークフロー
 
 ```typescript
 const aiAnalysisStep = createStep({
-  id: "ai-analysis",
-  description: "AIエージェントによる分析",
+  id: 'ai-analysis',
+  description: 'AIエージェントによる分析',
   inputSchema: z.object({
     data: z.string(),
   }),
@@ -172,22 +172,22 @@ const aiAnalysisStep = createStep({
     analysis: z.string(),
   }),
   execute: async ({ inputData, mastra }) => {
-    const agent = mastra.getAgent("analysisAgent");
+    const agent = mastra.getAgent('analysisAgent')
     const result = await agent.generate([
       {
-        role: "user",
+        role: 'user',
         content: `次のデータを分析してください: ${inputData.data}`,
       },
-    ]);
+    ])
 
     return {
       analysis: result.text,
-    };
+    }
   },
-});
+})
 
 export const aiPoweredWorkflow = createWorkflow({
-  id: "ai-powered-workflow",
+  id: 'ai-powered-workflow',
   inputSchema: z.object({
     data: z.string(),
   }),
@@ -196,28 +196,28 @@ export const aiPoweredWorkflow = createWorkflow({
   }),
 })
   .then(aiAnalysisStep)
-  .commit();
+  .commit()
 ```
 
 ### 3. 並列実行ワークフロー
 
 ```typescript
 const step1 = createStep({
-  id: "parallel-step-1",
+  id: 'parallel-step-1',
   inputSchema: z.object({ input: z.string() }),
   outputSchema: z.object({ result1: z.string() }),
-  execute: async ({ inputData }) => ({ result1: "結果1" }),
-});
+  execute: async ({ inputData }) => ({ result1: '結果1' }),
+})
 
 const step2 = createStep({
-  id: "parallel-step-2",
+  id: 'parallel-step-2',
   inputSchema: z.object({ input: z.string() }),
   outputSchema: z.object({ result2: z.string() }),
-  execute: async ({ inputData }) => ({ result2: "結果2" }),
-});
+  execute: async ({ inputData }) => ({ result2: '結果2' }),
+})
 
 const combineStep = createStep({
-  id: "combine-results",
+  id: 'combine-results',
   inputSchema: z.object({
     result1: z.string(),
     result2: z.string(),
@@ -228,16 +228,16 @@ const combineStep = createStep({
   execute: async ({ inputData }) => ({
     combined: `${inputData.result1} + ${inputData.result2}`,
   }),
-});
+})
 
 export const parallelWorkflow = createWorkflow({
-  id: "parallel-workflow",
+  id: 'parallel-workflow',
   inputSchema: z.object({ input: z.string() }),
   outputSchema: z.object({ combined: z.string() }),
 })
   .parallel([step1, step2])
   .then(combineStep)
-  .commit();
+  .commit()
 ```
 
 ## Mastraインスタンス管理
@@ -245,8 +245,8 @@ export const parallelWorkflow = createWorkflow({
 ### 1. 基本設定
 
 ```typescript
-import { Mastra } from "@mastra/core/mastra";
-import { PinoLogger } from "@mastra/loggers";
+import { Mastra } from '@mastra/core/mastra'
+import { PinoLogger } from '@mastra/loggers'
 
 export const mastra = new Mastra({
   agents: {
@@ -260,10 +260,10 @@ export const mastra = new Mastra({
     parallelWorkflow,
   },
   logger: new PinoLogger({
-    name: "MiniApp-AI-System",
-    level: "info",
+    name: 'MiniApp-AI-System',
+    level: 'info',
   }),
-});
+})
 ```
 
 ### 2. 実行パターン
@@ -271,29 +271,29 @@ export const mastra = new Mastra({
 ```typescript
 // エージェント実行
 async function runAgent() {
-  const agent = mastra.getAgent("researchAgent");
+  const agent = mastra.getAgent('researchAgent')
   const result = await agent.generate([
     {
-      role: "user",
-      content: "最新のAI技術トレンドについて調査してください",
+      role: 'user',
+      content: '最新のAI技術トレンドについて調査してください',
     },
-  ]);
+  ])
 
-  console.log(result.text);
+  console.log(result.text)
 }
 
 // ワークフロー実行
 async function runWorkflow() {
-  const workflow = mastra.getWorkflow("dataAnalysisWorkflow");
-  const run = workflow.createRun();
+  const workflow = mastra.getWorkflow('dataAnalysisWorkflow')
+  const run = workflow.createRun()
 
   const result = await run.start({
     inputData: {
-      rawData: "分析対象のデータ",
+      rawData: '分析対象のデータ',
     },
-  });
+  })
 
-  console.log(result);
+  console.log(result)
 }
 ```
 
@@ -304,15 +304,13 @@ async function runWorkflow() {
 ```typescript
 async function safeAgentExecution() {
   try {
-    const agent = mastra.getAgent("researchAgent");
-    const result = await agent.generate([
-      { role: "user", content: "質問内容" }
-    ]);
-    return result;
+    const agent = mastra.getAgent('researchAgent')
+    const result = await agent.generate([{ role: 'user', content: '質問内容' }])
+    return result
   } catch (error) {
-    console.error("エージェント実行エラー:", error);
+    console.error('エージェント実行エラー:', error)
     // フォールバック処理
-    return { text: "エラーが発生しました。後ほど再試行してください。" };
+    return { text: 'エラーが発生しました。後ほど再試行してください。' }
   }
 }
 ```
@@ -322,14 +320,14 @@ async function safeAgentExecution() {
 ```typescript
 async function safeWorkflowExecution() {
   try {
-    const workflow = mastra.getWorkflow("dataAnalysisWorkflow");
-    const run = workflow.createRun();
-    const result = await run.start({ inputData: { rawData: "data" } });
-    return result;
+    const workflow = mastra.getWorkflow('dataAnalysisWorkflow')
+    const run = workflow.createRun()
+    const result = await run.start({ inputData: { rawData: 'data' } })
+    return result
   } catch (error) {
-    console.error("ワークフロー実行エラー:", error);
+    console.error('ワークフロー実行エラー:', error)
     // エラー処理とリトライ機能
-    throw new Error("ワークフロー処理に失敗しました");
+    throw new Error('ワークフロー処理に失敗しました')
   }
 }
 ```
@@ -365,7 +363,7 @@ const StrictInputSchema = z.object({
   userId: z.string().uuid(),
   content: z.string().min(1).max(1000),
   timestamp: z.string().datetime(),
-});
+})
 
 const StrictOutputSchema = z.object({
   result: z.string(),
@@ -374,61 +372,61 @@ const StrictOutputSchema = z.object({
     processedAt: z.string().datetime(),
     model: z.string(),
   }),
-});
+})
 ```
 
 ### 2. ログ戦略
 
 ```typescript
 const step = createStep({
-  id: "logged-step",
+  id: 'logged-step',
   execute: async ({ inputData, mastra }) => {
-    const logger = mastra.getLogger();
+    const logger = mastra.getLogger()
 
-    logger.info("ステップ開始", { inputData });
+    logger.info('ステップ開始', { inputData })
 
     try {
-      const result = await processData(inputData);
-      logger.info("ステップ完了", { result });
-      return result;
+      const result = await processData(inputData)
+      logger.info('ステップ完了', { result })
+      return result
     } catch (error) {
-      logger.error("ステップエラー", { error });
-      throw error;
+      logger.error('ステップエラー', { error })
+      throw error
     }
   },
-});
+})
 ```
 
 ### 3. テスト戦略
 
 ```typescript
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from 'vitest'
 
-describe("ResearchAgent", () => {
-  it("should generate research results", async () => {
-    const agent = mastra.getAgent("researchAgent");
+describe('ResearchAgent', () => {
+  it('should generate research results', async () => {
+    const agent = mastra.getAgent('researchAgent')
     const result = await agent.generate([
-      { role: "user", content: "テスト質問" }
-    ]);
+      { role: 'user', content: 'テスト質問' },
+    ])
 
-    expect(result.text).toBeDefined();
-    expect(result.text.length).toBeGreaterThan(0);
-  });
-});
+    expect(result.text).toBeDefined()
+    expect(result.text.length).toBeGreaterThan(0)
+  })
+})
 
-describe("DataAnalysisWorkflow", () => {
-  it("should process data successfully", async () => {
-    const workflow = mastra.getWorkflow("dataAnalysisWorkflow");
-    const run = workflow.createRun();
+describe('DataAnalysisWorkflow', () => {
+  it('should process data successfully', async () => {
+    const workflow = mastra.getWorkflow('dataAnalysisWorkflow')
+    const run = workflow.createRun()
 
     const result = await run.start({
-      inputData: { rawData: "テストデータ" }
-    });
+      inputData: { rawData: 'テストデータ' },
+    })
 
-    expect(result.processedData).toBeDefined();
-    expect(result.processedData.summary).toBeDefined();
-  });
-});
+    expect(result.processedData).toBeDefined()
+    expect(result.processedData.summary).toBeDefined()
+  })
+})
 ```
 
 ## 開発フロー

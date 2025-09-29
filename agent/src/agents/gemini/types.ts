@@ -38,7 +38,7 @@ export type PermissionResult =
 
 export type CanUseTool = (
   toolName: string,
-  input: Record<string, unknown>,
+  input: Record<string, unknown>
 ) => Promise<PermissionResult>
 
 // MCP Server設定（Claude Code SDK互換）
@@ -83,7 +83,7 @@ export type Options = {
   canUseTool?: CanUseTool
   continue?: boolean
   resume?: string
-  
+
   // Gemini CLI固有オプション
   sandbox?: boolean
   debug?: boolean

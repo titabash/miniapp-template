@@ -2,7 +2,7 @@ import OpenAI from 'openai'
 
 // Server Functions 用のOpenAIクライアントインスタンス作成
 export async function createOpenAIInstance(): Promise<OpenAI> {
-  "use server"
+  'use server'
 
   const apiKey = process.env.OPENAI_API_KEY
 
@@ -28,14 +28,14 @@ export async function createOpenAIInstance(): Promise<OpenAI> {
 
 // OpenAI API呼び出し用の共通エラーハンドリング
 export function handleOpenAIError(error: unknown): string {
-  "use server"
+  'use server'
 
   if (error instanceof Error) {
     // OpenAI APIエラーの場合
     if ('status' in error && 'message' in error) {
       const apiError = error as {
-        status?: number;
-        message: string;
+        status?: number
+        message: string
       }
 
       switch (apiError.status) {

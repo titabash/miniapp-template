@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient } from '@supabase/supabase-js'
 import type {
   DevelopmentRecord,
   Message,
@@ -6,22 +6,22 @@ import type {
   SDKAssistantMessage,
   SDKResultMessage,
   SDKSystemMessage,
-} from "./types";
-import { executeGitCommitWithConflictResolution } from "./git-sync";
-import llmPriceData from "../const/llm_price.json" with { type: "json" };
+} from './types'
+import { executeGitCommitWithConflictResolution } from './git-sync'
+import llmPriceData from '../const/llm_price.json' with { type: 'json' }
 
 // Initialize Supabase client
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+const supabaseUrl = process.env.SUPABASE_URL
+const supabaseAnonKey = process.env.SUPABASE_ANON_KEY
 
 if (!supabaseUrl || !supabaseAnonKey) {
   console.error(
-    "Error: SUPABASE_URL and SUPABASE_ANON_KEY environment variables are required"
-  );
-  process.exit(1);
+    'Error: SUPABASE_URL and SUPABASE_ANON_KEY environment variables are required'
+  )
+  process.exit(1)
 }
 
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 // Calculate token cost based on model and token counts with strict pricing validation
 export function calculateTokenCost(
@@ -31,43 +31,60 @@ export function calculateTokenCost(
   cacheCreationTokens: number = 0,
   cacheReadTokens: number = 0
 ): number {
-  const models = llmPriceData.models as any;
-  const profitMultiplier = llmPriceData.profit_multiplier;
-  
+  const models = llmPriceData.models as any
+  const profitMultiplier = llmPriceData.profit_multiplier
+
   // Find model in pricing data - NO FALLBACK, STRICT VALIDATION
-  const model = models[modelName];
+  const model = models[modelName]
   if (!model) {
-    throw new Error(`❌ CRITICAL: Model "${modelName}" not found in pricing data. This affects revenue calculation. Add proper pricing configuration.`);
+    throw new Error(
+      `❌ CRITICAL: Model "${modelName}" not found in pricing data. This affects revenue calculation. Add proper pricing configuration.`
+    )
   }
-  
+
   // Validate required pricing fields
-  validateModelPricingConfig(model, modelName);
-  
-  return calculateModelSpecificCost(model, inputTokens, outputTokens, cacheCreationTokens, cacheReadTokens, profitMultiplier);
+  validateModelPricingConfig(model, modelName)
+
+  return calculateModelSpecificCost(
+    model,
+    inputTokens,
+    outputTokens,
+    cacheCreationTokens,
+    cacheReadTokens,
+    profitMultiplier
+  )
 }
 
 // Strict validation of model pricing configuration
 function validateModelPricingConfig(model: any, modelName: string): void {
-  const requiredFields = ['input_per_1k_usd', 'output_per_1k_usd', 'provider'];
-  
+  const requiredFields = ['input_per_1k_usd', 'output_per_1k_usd', 'provider']
+
   for (const field of requiredFields) {
     if (model[field] === undefined || model[field] === null) {
-      throw new Error(`❌ CRITICAL: Model "${modelName}" missing required pricing field "${field}". This affects revenue calculation.`);
+      throw new Error(
+        `❌ CRITICAL: Model "${modelName}" missing required pricing field "${field}". This affects revenue calculation.`
+      )
     }
   }
-  
+
   // Validate cache pricing if cache tokens are provided
   if (model.cache_creation_per_1k_usd === undefined && model.provider) {
-    throw new Error(`❌ CRITICAL: Model "${modelName}" missing "cache_creation_per_1k_usd". Cannot calculate cache creation cost accurately.`);
+    throw new Error(
+      `❌ CRITICAL: Model "${modelName}" missing "cache_creation_per_1k_usd". Cannot calculate cache creation cost accurately.`
+    )
   }
-  
+
   if (model.cache_read_per_1k_usd === undefined && model.provider) {
-    throw new Error(`❌ CRITICAL: Model "${modelName}" missing "cache_read_per_1k_usd". Cannot calculate cache read cost accurately.`);
+    throw new Error(
+      `❌ CRITICAL: Model "${modelName}" missing "cache_read_per_1k_usd". Cannot calculate cache read cost accurately.`
+    )
   }
-  
+
   // Validate Gemini tiered pricing
   if (model.input_per_1k_usd_small && !model.input_per_1k_usd_large) {
-    throw new Error(`❌ CRITICAL: Model "${modelName}" has incomplete tiered pricing configuration.`);
+    throw new Error(
+      `❌ CRITICAL: Model "${modelName}" has incomplete tiered pricing configuration.`
+    )
   }
 }
 
@@ -80,63 +97,80 @@ function calculateModelSpecificCost(
   cacheReadTokens: number,
   profitMultiplier: number
 ): number {
-  let inputCost = 0;
-  let outputCost = 0;
-  let cacheCreationCost = 0;
-  let cacheReadCost = 0;
+  let inputCost = 0
+  let outputCost = 0
+  let cacheCreationCost = 0
+  let cacheReadCost = 0
 
   // Calculate input/output costs based on model configuration
   if (model.input_per_1k_usd_small && model.input_per_1k_usd_large) {
     // Gemini tiered pricing - both fields must be present (validated above)
-    const contextThreshold = model.context_threshold_tokens || 200000;
-    const totalContextTokens = inputTokens + cacheCreationTokens;
-    const isLargeContext = totalContextTokens > contextThreshold;
-    
-    const inputRate = isLargeContext ? model.input_per_1k_usd_large : model.input_per_1k_usd_small;
-    const outputRate = isLargeContext ? model.output_per_1k_usd_large : model.output_per_1k_usd_small;
-    const cacheReadRate = isLargeContext ? model.cache_read_per_1k_usd_large : model.cache_read_per_1k_usd_small;
-    
-    inputCost = inputTokens / 1000 * inputRate;
-    outputCost = outputTokens / 1000 * outputRate;
-    cacheCreationCost = cacheCreationTokens / 1000 * inputRate; // Gemini: cache creation at input rate
-    cacheReadCost = cacheReadTokens / 1000 * cacheReadRate;
+    const contextThreshold = model.context_threshold_tokens || 200000
+    const totalContextTokens = inputTokens + cacheCreationTokens
+    const isLargeContext = totalContextTokens > contextThreshold
+
+    const inputRate = isLargeContext
+      ? model.input_per_1k_usd_large
+      : model.input_per_1k_usd_small
+    const outputRate = isLargeContext
+      ? model.output_per_1k_usd_large
+      : model.output_per_1k_usd_small
+    const cacheReadRate = isLargeContext
+      ? model.cache_read_per_1k_usd_large
+      : model.cache_read_per_1k_usd_small
+
+    inputCost = (inputTokens / 1000) * inputRate
+    outputCost = (outputTokens / 1000) * outputRate
+    cacheCreationCost = (cacheCreationTokens / 1000) * inputRate // Gemini: cache creation at input rate
+    cacheReadCost = (cacheReadTokens / 1000) * cacheReadRate
   } else {
     // Standard pricing for OpenAI/Anthropic models - all fields must be configured
-    inputCost = inputTokens / 1000 * model.input_per_1k_usd;
-    outputCost = outputTokens / 1000 * model.output_per_1k_usd;
-    cacheCreationCost = cacheCreationTokens / 1000 * model.cache_creation_per_1k_usd;
-    cacheReadCost = cacheReadTokens / 1000 * model.cache_read_per_1k_usd;
+    inputCost = (inputTokens / 1000) * model.input_per_1k_usd
+    outputCost = (outputTokens / 1000) * model.output_per_1k_usd
+    cacheCreationCost =
+      (cacheCreationTokens / 1000) * model.cache_creation_per_1k_usd
+    cacheReadCost = (cacheReadTokens / 1000) * model.cache_read_per_1k_usd
   }
-  
-  const totalCost = (inputCost + outputCost + cacheCreationCost + cacheReadCost) * profitMultiplier;
-  
-  console.log(`💰 STRICT Cost calculation for ${model.upstream_id || 'unknown'} (${model.provider || 'unknown'}):`);
-  console.log(`  Input tokens: ${inputTokens} = $${inputCost.toFixed(8)}`);
-  console.log(`  Output tokens: ${outputTokens} = $${outputCost.toFixed(8)}`);
-  console.log(`  Cache creation tokens: ${cacheCreationTokens} = $${cacheCreationCost.toFixed(8)}`);
-  console.log(`  Cache read tokens: ${cacheReadTokens} = $${cacheReadCost.toFixed(8)}`);
-  console.log(`  Subtotal: $${(inputCost + outputCost + cacheCreationCost + cacheReadCost).toFixed(8)}`);
-  console.log(`  Profit multiplier: ${profitMultiplier}x`);
-  console.log(`  FINAL COST: $${totalCost.toFixed(8)}`);
-  
-  return totalCost;
+
+  const totalCost =
+    (inputCost + outputCost + cacheCreationCost + cacheReadCost) *
+    profitMultiplier
+
+  console.log(
+    `💰 STRICT Cost calculation for ${model.upstream_id || 'unknown'} (${model.provider || 'unknown'}):`
+  )
+  console.log(`  Input tokens: ${inputTokens} = $${inputCost.toFixed(8)}`)
+  console.log(`  Output tokens: ${outputTokens} = $${outputCost.toFixed(8)}`)
+  console.log(
+    `  Cache creation tokens: ${cacheCreationTokens} = $${cacheCreationCost.toFixed(8)}`
+  )
+  console.log(
+    `  Cache read tokens: ${cacheReadTokens} = $${cacheReadCost.toFixed(8)}`
+  )
+  console.log(
+    `  Subtotal: $${(inputCost + outputCost + cacheCreationCost + cacheReadCost).toFixed(8)}`
+  )
+  console.log(`  Profit multiplier: ${profitMultiplier}x`)
+  console.log(`  FINAL COST: $${totalCost.toFixed(8)}`)
+
+  return totalCost
 }
 
 // Type guard functions
 function isUserMessage(message: Message): message is SDKUserMessage {
-  return message.type === "user";
+  return message.type === 'user'
 }
 
 function isAssistantMessage(message: Message): message is SDKAssistantMessage {
-  return message.type === "assistant";
+  return message.type === 'assistant'
 }
 
 function isResultMessage(message: Message): message is SDKResultMessage {
-  return message.type === "result";
+  return message.type === 'result'
 }
 
 function isSystemMessage(message: Message): message is SDKSystemMessage {
-  return message.type === "system";
+  return message.type === 'system'
 }
 
 // Helper function to update development status to ERROR
@@ -146,45 +180,45 @@ export async function updateDevelopmentStatusToError(
   sessionId?: string
 ) {
   if (!developmentRecord) {
-    console.log("⚠️ No development record to update");
-    return;
+    console.log('⚠️ No development record to update')
+    return
   }
 
   try {
     console.log(
       `📝 Updating development status to ERROR for record: ${developmentRecord.id}`
-    );
-    console.log(`📝 Error message: ${errorMessage || "No error message"}`);
+    )
+    console.log(`📝 Error message: ${errorMessage || 'No error message'}`)
 
     const updateData: any = {
-      status: "ERROR",
+      status: 'ERROR',
       finished_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
-    };
+    }
 
     if (sessionId) {
-      updateData.session_id = sessionId;
-      console.log(`📝 Including session_id: ${sessionId}`);
+      updateData.session_id = sessionId
+      console.log(`📝 Including session_id: ${sessionId}`)
     }
 
     const { data, error: updateError } = await supabase
-      .from("miniapp_development")
+      .from('miniapp_development')
       .update(updateData)
-      .eq("id", developmentRecord.id)
-      .select();
+      .eq('id', developmentRecord.id)
+      .select()
 
     if (updateError) {
       console.error(
-        "Failed to update development status to ERROR:",
+        'Failed to update development status to ERROR:',
         updateError
-      );
-      console.error("Error details:", JSON.stringify(updateError, null, 2));
+      )
+      console.error('Error details:', JSON.stringify(updateError, null, 2))
     } else {
-      console.log("📝 Development status successfully updated to ERROR");
-      console.log("Updated record:", data);
+      console.log('📝 Development status successfully updated to ERROR')
+      console.log('Updated record:', data)
     }
   } catch (dbError) {
-    console.error("Failed to update development status to ERROR:", dbError);
+    console.error('Failed to update development status to ERROR:', dbError)
   }
 }
 
@@ -194,40 +228,40 @@ export async function createDevelopmentRecord(
   userId: string,
   userInstruction: string
 ): Promise<DevelopmentRecord> {
-  const now = new Date().toISOString();
+  const now = new Date().toISOString()
 
   // デバッグ: 関数内で受け取った値を確認
-  console.log(`🔍 createDevelopmentRecord - Parameters:`);
-  console.log(`  miniAppId: "${miniAppId}"`);
-  console.log(`  userId: "${userId}"`);
+  console.log(`🔍 createDevelopmentRecord - Parameters:`)
+  console.log(`  miniAppId: "${miniAppId}"`)
+  console.log(`  userId: "${userId}"`)
   console.log(
     `  userInstruction (first 100 chars): "${userInstruction?.substring(
       0,
       100
     )}..."`
-  );
+  )
 
   // Always create new record for each session
-  console.log(`📝 Creating new development record for miniapp: ${miniAppId}`);
+  console.log(`📝 Creating new development record for miniapp: ${miniAppId}`)
   const { data, error } = await supabase
-    .from("miniapp_development")
+    .from('miniapp_development')
     .insert({
       id: crypto.randomUUID(),
       miniapp_id: miniAppId,
       user_id: userId,
       user_instruction: userInstruction,
-      status: "PROCESSING",
+      status: 'PROCESSING',
       created_at: now,
       updated_at: now,
     })
     .select()
-    .single();
+    .single()
 
   if (error) {
-    console.error("Error creating development record:", error);
-    throw error;
+    console.error('Error creating development record:', error)
+    throw error
   }
-  return data;
+  return data
 }
 
 // Helper function to update development record with result data
@@ -238,38 +272,38 @@ async function updateDevelopmentWithResultData(
   numTurns?: number
 ) {
   try {
-    const updateData: any = {};
+    const updateData: any = {}
 
     if (totalCostUsd !== undefined) {
-      updateData.total_cost_usd = totalCostUsd;
+      updateData.total_cost_usd = totalCostUsd
     }
 
     if (durationMs !== undefined) {
-      updateData.duration_ms = durationMs;
+      updateData.duration_ms = durationMs
     }
 
     if (numTurns !== undefined) {
-      updateData.num_turns = numTurns;
+      updateData.num_turns = numTurns
     }
 
     if (Object.keys(updateData).length > 0) {
-      updateData.updated_at = new Date().toISOString();
+      updateData.updated_at = new Date().toISOString()
 
       const { error } = await supabase
-        .from("miniapp_development")
+        .from('miniapp_development')
         .update(updateData)
-        .eq("id", developmentId);
+        .eq('id', developmentId)
 
       if (error) {
-        console.error("Failed to update development with result data:", error);
+        console.error('Failed to update development with result data:', error)
       } else {
         console.log(
           `📊 Updated development record with cost: $${totalCostUsd}, duration: ${durationMs}ms, turns: ${numTurns}`
-        );
+        )
       }
     }
   } catch (error) {
-    console.error("Error updating development with result data:", error);
+    console.error('Error updating development with result data:', error)
   }
 }
 
@@ -282,7 +316,7 @@ export async function saveMessageToDatabase(
 ) {
   // Early validation of userId
   if (!userId) {
-    const errorMessage = "userId is required for saveMessageToDatabase";
+    const errorMessage = 'userId is required for saveMessageToDatabase'
 
     // Record error to miniapp_ai_processing table
     try {
@@ -293,110 +327,110 @@ export async function saveMessageToDatabase(
         errorMessage,
         llmModel,
         {
-          error_type: "MISSING_USER_ID",
-          message_details: { type: message.type }
+          error_type: 'MISSING_USER_ID',
+          message_details: { type: message.type },
         }
-      );
+      )
     } catch (err) {
-      console.error("Failed to save error to AI processing:", err);
+      console.error('Failed to save error to AI processing:', err)
     }
 
-    console.error("❌ CRITICAL:", errorMessage);
-    console.error("  developmentId:", developmentId);
-    console.error("  llmModel:", llmModel);
-    console.error("  message.type:", message.type);
-    console.error("  Stack trace:", new Error().stack);
+    console.error('❌ CRITICAL:', errorMessage)
+    console.error('  developmentId:', developmentId)
+    console.error('  llmModel:', llmModel)
+    console.error('  message.type:', message.type)
+    console.error('  Stack trace:', new Error().stack)
 
-    throw new Error(errorMessage);
+    throw new Error(errorMessage)
   }
 
-  let contentText: string | null = null;
-  let result: any = null;
-  let metadata: any = null;
-  let subtype = (message as any).subtype || null;
+  let contentText: string | null = null
+  let result: any = null
+  let metadata: any = null
+  let subtype = (message as any).subtype || null
 
   // Usage token extraction
-  let inputTokens: number | null = null;
-  let outputTokens: number | null = null;
-  let cacheCreationInputTokens: number | null = null;
-  let cacheReadInputTokens: number | null = null;
+  let inputTokens: number | null = null
+  let outputTokens: number | null = null
+  let cacheCreationInputTokens: number | null = null
+  let cacheReadInputTokens: number | null = null
 
   // Extract content text and prepare metadata based on message type
   if (isAssistantMessage(message)) {
     if (message.message?.content) {
       const textContent = message.message.content
-        .filter((content: any) => content.type === "text")
+        .filter((content: any) => content.type === 'text')
         .map((content: any) => content.text)
-        .join("\n");
-      contentText = textContent || null;
+        .join('\n')
+      contentText = textContent || null
 
       // Set subtype based on content types
       const contentTypes = message.message.content.map(
         (content: any) => content.type
-      );
-      if (contentTypes.includes("tool_use")) {
-        subtype = "tool_use";
-      } else if (contentTypes.includes("text")) {
-        subtype = "text";
+      )
+      if (contentTypes.includes('tool_use')) {
+        subtype = 'tool_use'
+      } else if (contentTypes.includes('text')) {
+        subtype = 'text'
       }
     }
 
     // Extract usage tokens for assistant messages
     if (message.message?.usage) {
-      inputTokens = message.message.usage.input_tokens || null;
-      outputTokens = message.message.usage.output_tokens || null;
+      inputTokens = message.message.usage.input_tokens || null
+      outputTokens = message.message.usage.output_tokens || null
       cacheCreationInputTokens =
-        message.message.usage.cache_creation_input_tokens || null;
+        message.message.usage.cache_creation_input_tokens || null
       cacheReadInputTokens =
-        message.message.usage.cache_read_input_tokens || null;
+        message.message.usage.cache_read_input_tokens || null
     }
 
     metadata = {
       full_message: message, // query関数から取得した完全なメッセージオブジェクトを追加
-    };
+    }
   } else if (isUserMessage(message)) {
     if (message.message?.content) {
       const textContent = message.message.content
-        .filter((content: any) => content.type === "text")
+        .filter((content: any) => content.type === 'text')
         .map((content: any) => content.text)
-        .join("\n");
-      contentText = textContent || null;
+        .join('\n')
+      contentText = textContent || null
 
       // Set subtype based on content types
       const contentTypes = message.message.content.map(
         (content: any) => content.type
-      );
-      if (contentTypes.includes("tool_result")) {
-        subtype = "tool_result";
-      } else if (contentTypes.includes("text")) {
-        subtype = "text";
+      )
+      if (contentTypes.includes('tool_result')) {
+        subtype = 'tool_result'
+      } else if (contentTypes.includes('text')) {
+        subtype = 'text'
       }
     }
     metadata = {
       full_message: message, // query関数から取得した完全なメッセージオブジェクトを追加
-    };
+    }
   } else if (isResultMessage(message)) {
-    subtype = message.subtype;
+    subtype = message.subtype
 
     // result property only exists for success subtype
-    if (message.subtype === "success" && "result" in message) {
-      result = message.result;
+    if (message.subtype === 'success' && 'result' in message) {
+      result = message.result
     } else {
-      result = null;
+      result = null
     }
 
     // Extract usage tokens for result messages
     if (message.usage) {
-      inputTokens = message.usage.input_tokens || null;
-      outputTokens = message.usage.output_tokens || null;
+      inputTokens = message.usage.input_tokens || null
+      outputTokens = message.usage.output_tokens || null
       cacheCreationInputTokens =
-        message.usage.cache_creation_input_tokens || null;
-      cacheReadInputTokens = message.usage.cache_read_input_tokens || null;
+        message.usage.cache_creation_input_tokens || null
+      cacheReadInputTokens = message.usage.cache_read_input_tokens || null
     }
 
     metadata = {
       full_message: message, // query関数から取得した完全なメッセージオブジェクトを追加
-    };
+    }
 
     // Update development record with total cost and duration for result messages
     await updateDevelopmentWithResultData(
@@ -404,19 +438,19 @@ export async function saveMessageToDatabase(
       message.total_cost_usd,
       message.duration_ms,
       message.num_turns
-    );
+    )
   } else if (isSystemMessage(message)) {
-    subtype = message.subtype;
+    subtype = message.subtype
     metadata = {
       full_message: message, // query関数から取得した完全なメッセージオブジェクトを追加
-    };
+    }
   }
 
   // Extract is_error based on message type
-  let isError: boolean | null = null;
+  let isError: boolean | null = null
   if (isResultMessage(message)) {
     // For ResultMessage, is_error is a direct property
-    isError = message.is_error;
+    isError = message.is_error
   } else if (
     (isUserMessage(message) || isAssistantMessage(message)) &&
     message.message?.content
@@ -425,13 +459,16 @@ export async function saveMessageToDatabase(
     isError =
       message.message.content.some(
         (content: any) => content.is_error === true
-      ) || null;
+      ) || null
   }
 
   // Calculate cost if we have token data
-  let costAmount = 0;
-  const hasTokenData = inputTokens !== null && outputTokens !== null && (inputTokens > 0 || outputTokens > 0);
-  
+  let costAmount = 0
+  const hasTokenData =
+    inputTokens !== null &&
+    outputTokens !== null &&
+    (inputTokens > 0 || outputTokens > 0)
+
   if (hasTokenData && llmModel) {
     costAmount = calculateTokenCost(
       llmModel,
@@ -439,17 +476,23 @@ export async function saveMessageToDatabase(
       outputTokens || 0,
       cacheCreationInputTokens || 0,
       cacheReadInputTokens || 0
-    );
-    console.log(`💰 Calculated cost: $${costAmount.toFixed(8)} for user ${userId}`);
+    )
+    console.log(
+      `💰 Calculated cost: $${costAmount.toFixed(8)} for user ${userId}`
+    )
   } else {
-    console.log(`💰 No cost calculation: hasTokenData=${hasTokenData}, llmModel=${llmModel}`);
+    console.log(
+      `💰 No cost calculation: hasTokenData=${hasTokenData}, llmModel=${llmModel}`
+    )
   }
 
   // Always use RPC function for all message processing
-  console.log(`🏦 Using RPC function for message processing and credit deduction`);
-  console.log(`🏦 RPC parameters:`);
-  console.log(`  p_user_id: ${userId}`);
-  console.log(`  p_cost_amount: ${costAmount}`);
+  console.log(
+    `🏦 Using RPC function for message processing and credit deduction`
+  )
+  console.log(`🏦 RPC parameters:`)
+  console.log(`  p_user_id: ${userId}`)
+  console.log(`  p_cost_amount: ${costAmount}`)
 
   const { data: rpcResult, error: rpcError } = await supabase.rpc(
     'deduct_user_credit_and_record_processing',
@@ -468,38 +511,44 @@ export async function saveMessageToDatabase(
       p_content_text: contentText,
       p_result: result,
       p_is_error: isError,
-      p_metadata: metadata
+      p_metadata: metadata,
     }
-  );
+  )
 
   if (rpcError) {
-    console.error("❌ RPC function error:", rpcError);
-    throw rpcError;
+    console.error('❌ RPC function error:', rpcError)
+    throw rpcError
   }
 
   if (!rpcResult.success) {
-    console.error("❌ RPC function failed:", rpcResult.error);
-    
+    console.error('❌ RPC function failed:', rpcResult.error)
+
     // If it's insufficient credit, throw a specific error
     if (rpcResult.error === 'Insufficient credit balance') {
-      const error = new Error(`Insufficient credit balance. Current: $${rpcResult.current_balance}, Required: $${rpcResult.required_cost}`);
-      error.name = 'InsufficientCreditError';
-      (error as any).currentBalance = rpcResult.current_balance;
-      (error as any).requiredCost = rpcResult.required_cost;
-      (error as any).processingId = rpcResult.processing_id;
-      throw error;
+      const error = new Error(
+        `Insufficient credit balance. Current: $${rpcResult.current_balance}, Required: $${rpcResult.required_cost}`
+      )
+      error.name = 'InsufficientCreditError'
+      ;(error as any).currentBalance = rpcResult.current_balance
+      ;(error as any).requiredCost = rpcResult.required_cost
+      ;(error as any).processingId = rpcResult.processing_id
+      throw error
     } else {
-      throw new Error(rpcResult.error);
+      throw new Error(rpcResult.error)
     }
   }
 
   if (costAmount > 0) {
-    console.log(`💾 Saved message with credit deduction: $${costAmount.toFixed(8)}`);
-    console.log(`💰 New user balance: $${rpcResult.new_balance}`);
+    console.log(
+      `💾 Saved message with credit deduction: $${costAmount.toFixed(8)}`
+    )
+    console.log(`💰 New user balance: $${rpcResult.new_balance}`)
   } else {
-    console.log(`💾 Saved message without cost deduction (cost: $${costAmount})`);
+    console.log(
+      `💾 Saved message without cost deduction (cost: $${costAmount})`
+    )
   }
-  console.log(`📄 Processing ID: ${rpcResult.processing_id}`);
+  console.log(`📄 Processing ID: ${rpcResult.processing_id}`)
 }
 
 // Function to update development status to completed
@@ -509,66 +558,65 @@ export async function updateDevelopmentStatusToCompleted(
 ) {
   try {
     // 1. Get next version number
-    const version = await getNextVersion(developmentRecord.miniapp_id);
-    
+    const version = await getNextVersion(developmentRecord.miniapp_id)
+
     // 2. Execute git commit with conflict resolution
     console.log(
       `🚀 Creating git commit for miniapp ${developmentRecord.miniapp_id} v${version}...`
-    );
-    const { commitHash, hadConflicts } = await executeGitCommitWithConflictResolution(
-      developmentRecord.miniapp_id
-    );
-    
+    )
+    const { commitHash, hadConflicts } =
+      await executeGitCommitWithConflictResolution(developmentRecord.miniapp_id)
+
     if (hadConflicts) {
-      console.log(`⚠️ Conflicts were detected and resolved automatically`);
+      console.log(`⚠️ Conflicts were detected and resolved automatically`)
     }
-    
+
     console.log(
       `📦 Created commit ${commitHash} for miniapp ${developmentRecord.miniapp_id} v${version}`
-    );
-    
+    )
+
     // 3. Create version record in database with commit_hash
     await createVersionRecord(
       developmentRecord.miniapp_id,
       version,
       commitHash,
       developmentRecord.id
-    );
-    
+    )
+
     console.log(
       `📦 Created version ${version} with commit ${commitHash} for miniapp ${developmentRecord.miniapp_id}`
-    );
+    )
 
     // 4. Update development status to completed
     const updateData: any = {
-      status: "COMPLETED",
+      status: 'COMPLETED',
       finished_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
-    };
+    }
 
     if (sessionId) {
-      updateData.session_id = sessionId;
-      console.log(`📝 Including session_id: ${sessionId}`);
+      updateData.session_id = sessionId
+      console.log(`📝 Including session_id: ${sessionId}`)
     }
 
     const { data, error: updateError } = await supabase
-      .from("miniapp_development")
+      .from('miniapp_development')
       .update(updateData)
-      .eq("id", developmentRecord.id)
-      .select();
+      .eq('id', developmentRecord.id)
+      .select()
 
     if (updateError) {
-      console.error("Failed to update development status:", updateError);
-      console.error("Error details:", JSON.stringify(updateError, null, 2));
+      console.error('Failed to update development status:', updateError)
+      console.error('Error details:', JSON.stringify(updateError, null, 2))
     } else {
-      console.log("📝 Development status updated to COMPLETED");
-      console.log("Updated record:", data);
+      console.log('📝 Development status updated to COMPLETED')
+      console.log('Updated record:', data)
       console.log(
         `✅ Version ${version} created with commit ${commitHash} and development completed`
-      );
+      )
     }
   } catch (dbError) {
-    console.error("Failed to update development status:", dbError);
+    console.error('Failed to update development status:', dbError)
   }
 }
 
@@ -577,28 +625,28 @@ export async function getPreviousSessionId(
   miniAppId: string
 ): Promise<string | null> {
   try {
-    console.log(`🔍 Looking for previous session for miniapp: ${miniAppId}`);
+    console.log(`🔍 Looking for previous session for miniapp: ${miniAppId}`)
     const { data: latestDevelopment, error: fetchError } = await supabase
-      .from("miniapp_development")
-      .select("session_id")
-      .eq("miniapp_id", miniAppId)
-      .not("session_id", "is", null)
-      .order("created_at", { ascending: false })
+      .from('miniapp_development')
+      .select('session_id')
+      .eq('miniapp_id', miniAppId)
+      .not('session_id', 'is', null)
+      .order('created_at', { ascending: false })
       .limit(1)
-      .single();
+      .single()
 
     if (!fetchError && latestDevelopment?.session_id) {
       console.log(
         `🔗 Found previous session ID: ${latestDevelopment.session_id}`
-      );
-      return latestDevelopment.session_id;
+      )
+      return latestDevelopment.session_id
     } else {
-      console.log("🆕 No previous session found");
-      return null;
+      console.log('🆕 No previous session found')
+      return null
     }
   } catch (error) {
-    console.log("⚠️ Could not retrieve previous session");
-    return null;
+    console.log('⚠️ Could not retrieve previous session')
+    return null
   }
 }
 
@@ -607,23 +655,23 @@ export async function getNextVersion(miniAppId: string): Promise<number> {
   try {
     // 現在の最新バージョンを取得
     const { data: latestVersion } = await supabase
-      .from("miniapp_versions")
-      .select("version")
-      .eq("miniapp_id", miniAppId)
-      .order("version", { ascending: false })
+      .from('miniapp_versions')
+      .select('version')
+      .eq('miniapp_id', miniAppId)
+      .order('version', { ascending: false })
       .limit(1)
-      .single();
+      .single()
 
-    const nextVersion = latestVersion ? latestVersion.version + 1 : 1;
-    console.log(`📝 Next version for miniapp ${miniAppId}: v${nextVersion}`);
-    return nextVersion;
+    const nextVersion = latestVersion ? latestVersion.version + 1 : 1
+    console.log(`📝 Next version for miniapp ${miniAppId}: v${nextVersion}`)
+    return nextVersion
   } catch (error: any) {
     console.error(
       `❌ Failed to get next version for miniapp ${miniAppId}:`,
       error
-    );
+    )
     // エラーの場合でも初回は1を返す
-    return 1;
+    return 1
   }
 }
 
@@ -634,11 +682,11 @@ export async function createVersionRecord(
   developmentId?: string
 ): Promise<void> {
   try {
-    const now = new Date().toISOString();
-    
+    const now = new Date().toISOString()
+
     // MiniAppVersionレコードを作成（commit_hash付き）
     const { error: versionError } = await supabase
-      .from("miniapp_versions")
+      .from('miniapp_versions')
       .insert({
         id: crypto.randomUUID(),
         miniapp_id: miniAppId,
@@ -650,31 +698,33 @@ export async function createVersionRecord(
         is_published: false,
         created_at: now,
         updated_at: now,
-      });
+      })
 
     if (versionError) {
-      console.error("Error creating version record:", versionError);
-      throw versionError;
+      console.error('Error creating version record:', versionError)
+      throw versionError
     }
 
     // MiniAppのcurrent_versionも更新
     const { error: updateError } = await supabase
-      .from("miniapps")
+      .from('miniapps')
       .update({
         current_version: version,
         updated_at: now,
       })
-      .eq("id", miniAppId);
+      .eq('id', miniAppId)
 
     if (updateError) {
-      console.error("Error updating miniapp current version:", updateError);
-      throw updateError;
+      console.error('Error updating miniapp current version:', updateError)
+      throw updateError
     }
 
-    console.log(`✅ Created version record: miniapp ${miniAppId} v${version} (commit: ${commitHash})`);
+    console.log(
+      `✅ Created version record: miniapp ${miniAppId} v${version} (commit: ${commitHash})`
+    )
   } catch (error: any) {
-    console.error(`❌ Failed to create version record:`, error);
-    throw new Error(`Failed to create version record: ${error.message}`);
+    console.error(`❌ Failed to create version record:`, error)
+    throw new Error(`Failed to create version record: ${error.message}`)
   }
 }
 
@@ -683,21 +733,21 @@ export async function getDevelopmentRecord(
   developmentId: string
 ): Promise<DevelopmentRecord> {
   const { data, error } = await supabase
-    .from("miniapp_development")
-    .select("*")
-    .eq("id", developmentId)
-    .single();
+    .from('miniapp_development')
+    .select('*')
+    .eq('id', developmentId)
+    .single()
 
   if (error) {
-    console.error("Error fetching development record:", error);
-    throw error;
+    console.error('Error fetching development record:', error)
+    throw error
   }
 
   if (!data) {
-    throw new Error(`Development record not found: ${developmentId}`);
+    throw new Error(`Development record not found: ${developmentId}`)
   }
 
-  return data;
+  return data
 }
 
 // Helper function to save error to miniapp_ai_processing table
@@ -711,35 +761,34 @@ export async function saveErrorToAIProcessing(
 ) {
   try {
     const { data, error } = await supabase
-      .from("miniapp_ai_processing")
+      .from('miniapp_ai_processing')
       .insert({
         id: crypto.randomUUID(),
         development_id: developmentId,
-        session_id: sessionId || "",
+        session_id: sessionId || '',
         message_type: messageType,
-        subtype: "error",
+        subtype: 'error',
         content_text: errorMessage,
         is_error: true,
-        llm_model: llmModel || "claude-sonnet-4",
+        llm_model: llmModel || 'claude-sonnet-4',
         metadata: {
           error_details: errorMessage,
           timestamp: new Date().toISOString(),
-          ...metadata
+          ...metadata,
         },
-        created_at: new Date().toISOString()
+        created_at: new Date().toISOString(),
       })
       .select()
-      .single();
+      .single()
 
     if (error) {
-      console.error("Failed to save error to miniapp_ai_processing:", error);
+      console.error('Failed to save error to miniapp_ai_processing:', error)
     } else {
-      console.log(`📝 Error recorded in miniapp_ai_processing: ${data.id}`);
+      console.log(`📝 Error recorded in miniapp_ai_processing: ${data.id}`)
     }
 
-    return data;
+    return data
   } catch (err) {
-    console.error("Exception saving error to AI processing:", err);
+    console.error('Exception saving error to AI processing:', err)
   }
 }
-

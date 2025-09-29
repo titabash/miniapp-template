@@ -1,106 +1,105 @@
-import { ChildProcess } from 'child_process';
-import { createInterface } from 'readline';
-import type { 
-  SDKMessage, 
+import { ChildProcess } from 'child_process'
+import { createInterface } from 'readline'
+import type {
+  SDKMessage,
   SDKSystemMessage,
   SDKResultMessage,
   SDKAssistantMessage,
-  Query as QueryInterface
-} from './types.js';
-import { Stream } from './stream.js';
+  Query as QueryInterface,
+} from './types.js'
+import { Stream } from './stream.js'
 
 export class GeminiQuery implements QueryInterface {
-  private childProcess: ChildProcess;
-  private processExitPromise: Promise<void>;
-  private sdkMessages: AsyncGenerator<SDKMessage, void>;
-  private inputStream = new Stream<SDKMessage>();
-  private sessionId = Math.random().toString(36).substring(2, 15);
-  private startTime = Date.now();
-  private numTurns = 0;
+  private childProcess: ChildProcess
+  private processExitPromise: Promise<void>
+  private sdkMessages: AsyncGenerator<SDKMessage, void>
+  private inputStream = new Stream<SDKMessage>()
+  private sessionId = Math.random().toString(36).substring(2, 15)
+  private startTime = Date.now()
+  private numTurns = 0
 
   async [Symbol.asyncDispose](): Promise<void> {
-    await this.return();
+    await this.return()
   }
 
-  constructor(
-    childProcess: ChildProcess,
-    processExitPromise: Promise<void>
-  ) {
-    this.childProcess = childProcess;
-    this.processExitPromise = processExitPromise;
-    this.readMessages();
-    this.sdkMessages = this.readSdkMessages();
+  constructor(childProcess: ChildProcess, processExitPromise: Promise<void>) {
+    this.childProcess = childProcess
+    this.processExitPromise = processExitPromise
+    this.readMessages()
+    this.sdkMessages = this.readSdkMessages()
   }
 
   setError(error: any) {
-    this.inputStream.error(error);
+    this.inputStream.error(error)
   }
 
-  next(...[value]: [] | [undefined]): Promise<IteratorResult<SDKMessage, void>> {
-    return this.sdkMessages.next(...[value]);
+  next(
+    ...[value]: [] | [undefined]
+  ): Promise<IteratorResult<SDKMessage, void>> {
+    return this.sdkMessages.next(...[value])
   }
 
   return(value?: any): Promise<IteratorResult<SDKMessage, void>> {
-    return this.sdkMessages.return(value);
+    return this.sdkMessages.return(value)
   }
 
   throw(e?: any): Promise<IteratorResult<SDKMessage, void>> {
-    return this.sdkMessages.throw(e);
+    return this.sdkMessages.throw(e)
   }
 
   [Symbol.asyncIterator]() {
-    return this.sdkMessages;
+    return this.sdkMessages
   }
-
-
 
   async interrupt(): Promise<void> {
     if (!this.childProcess.killed) {
-      this.childProcess.kill('SIGTERM');
+      this.childProcess.kill('SIGTERM')
     }
   }
 
   private async readMessages() {
     if (!this.childProcess.stdout) {
-      this.inputStream.error(new Error("No stdout available"));
-      return;
+      this.inputStream.error(new Error('No stdout available'))
+      return
     }
 
-    const rl = createInterface({ input: this.childProcess.stdout });
-    let outputBuffer = '';
-    let aiResponseBuffer = '';
-    
+    const rl = createInterface({ input: this.childProcess.stdout })
+    let outputBuffer = ''
+    let aiResponseBuffer = ''
+
     try {
       // 初期システムメッセージを送信
-      this.sendSystemMessage();
+      this.sendSystemMessage()
 
       for await (const line of rl) {
         if (line.trim()) {
-          outputBuffer += line + '\n';
-          
+          outputBuffer += line + '\n'
+
           // 適切なフィルタリングでAI応答のみを抽出
-          const cleanLine = line.trim();
+          const cleanLine = line.trim()
           if (!this.isDebugOrMetaLine(cleanLine)) {
             if (cleanLine) {
-              aiResponseBuffer += cleanLine + '\n';
-              this.sendAssistantMessage(cleanLine);
+              aiResponseBuffer += cleanLine + '\n'
+              this.sendAssistantMessage(cleanLine)
             }
           }
-          this.numTurns++;
+          this.numTurns++
         }
       }
 
-      await this.processExitPromise;
+      await this.processExitPromise
 
       // 最終結果メッセージを送信（AIの応答部分のみ）
-      this.sendResultMessage(aiResponseBuffer.trim() || outputBuffer.trim(), false);
-
+      this.sendResultMessage(
+        aiResponseBuffer.trim() || outputBuffer.trim(),
+        false
+      )
     } catch (error) {
-      this.sendResultMessage('', true);
-      this.inputStream.error(error);
+      this.sendResultMessage('', true)
+      this.inputStream.error(error)
     } finally {
-      this.inputStream.done();
-      rl.close();
+      this.inputStream.done()
+      rl.close()
     }
   }
 
@@ -115,24 +114,26 @@ export class GeminiQuery implements QueryInterface {
       mcp_servers: [],
       model: 'gemini-2.5-pro',
       permissionMode: 'default',
-      slash_commands: []
-    };
-    this.inputStream.enqueue(systemMessage);
+      slash_commands: [],
+    }
+    this.inputStream.enqueue(systemMessage)
   }
 
   private isDebugOrMetaLine(line: string): boolean {
     // 実際のAI応答以外をフィルタリング
-    return line.startsWith('[DEBUG]') ||
-           line.startsWith('[dotenv@') ||
-           line.includes('injecting env') ||
-           line.startsWith('(node:') ||
-           line.includes('DeprecationWarning') ||
-           line.includes('Flushing log events') ||
-           line.includes('Clearcut response') ||
-           line.includes('[MemoryDiscovery]') ||
-           line.includes('[BfsFileSearch]') ||
-           line.includes('CLI: Delegating') ||
-           line === '';
+    return (
+      line.startsWith('[DEBUG]') ||
+      line.startsWith('[dotenv@') ||
+      line.includes('injecting env') ||
+      line.startsWith('(node:') ||
+      line.includes('DeprecationWarning') ||
+      line.includes('Flushing log events') ||
+      line.includes('Clearcut response') ||
+      line.includes('[MemoryDiscovery]') ||
+      line.includes('[BfsFileSearch]') ||
+      line.includes('CLI: Delegating') ||
+      line === ''
+    )
   }
 
   private sendAssistantMessage(content: string) {
@@ -140,17 +141,17 @@ export class GeminiQuery implements QueryInterface {
       type: 'assistant',
       message: {
         role: 'assistant',
-        content: content
+        content: content,
       },
       parent_tool_use_id: null,
-      session_id: this.sessionId
-    };
-    this.inputStream.enqueue(assistantMessage);
+      session_id: this.sessionId,
+    }
+    this.inputStream.enqueue(assistantMessage)
   }
 
   private sendResultMessage(result: string, isError: boolean) {
-    const duration = Date.now() - this.startTime;
-    
+    const duration = Date.now() - this.startTime
+
     if (isError) {
       const errorMessage: SDKResultMessage = {
         type: 'result',
@@ -163,10 +164,10 @@ export class GeminiQuery implements QueryInterface {
         total_cost_usd: 0,
         usage: {
           input_tokens: 0,
-          output_tokens: 0
-        }
-      };
-      this.inputStream.enqueue(errorMessage);
+          output_tokens: 0,
+        },
+      }
+      this.inputStream.enqueue(errorMessage)
     } else {
       const successMessage: SDKResultMessage = {
         type: 'result',
@@ -180,16 +181,16 @@ export class GeminiQuery implements QueryInterface {
         total_cost_usd: 0,
         usage: {
           input_tokens: 0,
-          output_tokens: result.length
-        }
-      };
-      this.inputStream.enqueue(successMessage);
+          output_tokens: result.length,
+        },
+      }
+      this.inputStream.enqueue(successMessage)
     }
   }
 
-  private async* readSdkMessages(): AsyncGenerator<SDKMessage, void> {
+  private async *readSdkMessages(): AsyncGenerator<SDKMessage, void> {
     for await (const message of this.inputStream) {
-      yield message;
+      yield message
     }
   }
 }

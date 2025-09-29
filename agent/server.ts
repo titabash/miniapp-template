@@ -9,7 +9,10 @@ import { logger } from 'hono/logger'
 import { streamSSE } from 'hono/streaming'
 import { v4 as uuidv4 } from 'uuid'
 import { ChildProcess, spawn } from 'child_process'
-import { createDevelopmentRecord, updateDevelopmentStatusToError } from './src/core/database'
+import {
+  createDevelopmentRecord,
+  updateDevelopmentStatusToError,
+} from './src/core/database'
 
 // ============================================================================
 // Types and Interfaces
@@ -63,19 +66,24 @@ app.use('*', logger())
 // Helper Functions
 // ============================================================================
 
-
 // プロセスハンドラー設定
 function setupProcessHandlers(session: AgentSession) {
   const { childProcess } = session
 
   childProcess.stdout?.on('data', (data) => {
     session.stdout += data.toString()
-    console.log(`[Session ${session.sessionId}] STDOUT:`, data.toString().trim())
+    console.log(
+      `[Session ${session.sessionId}] STDOUT:`,
+      data.toString().trim()
+    )
   })
 
   childProcess.stderr?.on('data', (data) => {
     session.stderr += data.toString()
-    console.log(`[Session ${session.sessionId}] STDERR:`, data.toString().trim())
+    console.log(
+      `[Session ${session.sessionId}] STDERR:`,
+      data.toString().trim()
+    )
   })
 
   childProcess.on('close', async (exitCode) => {
@@ -84,11 +92,15 @@ function setupProcessHandlers(session: AgentSession) {
     // 終了コードが0以外の場合はエラーとして扱う（停止された場合を除く）
     if (exitCode !== 0 && session.status !== 'stopped') {
       session.status = 'error'
-      console.error(`[Session ${session.sessionId}] Process exited with error code ${exitCode}`)
+      console.error(
+        `[Session ${session.sessionId}] Process exited with error code ${exitCode}`
+      )
 
       // developmentステータスをERRORに更新
       if (session.developmentRecordId) {
-        console.log(`[Session ${session.sessionId}] Updating development status to ERROR (exit code: ${exitCode})`)
+        console.log(
+          `[Session ${session.sessionId}] Updating development status to ERROR (exit code: ${exitCode})`
+        )
         try {
           await updateDevelopmentStatusToError(
             { id: session.developmentRecordId },
@@ -96,12 +108,17 @@ function setupProcessHandlers(session: AgentSession) {
             session.sessionId
           )
         } catch (dbError) {
-          console.error(`[Session ${session.sessionId}] Failed to update development status:`, dbError)
+          console.error(
+            `[Session ${session.sessionId}] Failed to update development status:`,
+            dbError
+          )
         }
       }
     } else {
       session.status = session.status === 'stopped' ? 'stopped' : 'completed'
-      console.log(`[Session ${session.sessionId}] Process exited with code ${exitCode}`)
+      console.log(
+        `[Session ${session.sessionId}] Process exited with code ${exitCode}`
+      )
     }
 
     // タイムアウトハンドルをクリア
@@ -117,7 +134,9 @@ function setupProcessHandlers(session: AgentSession) {
 
     // developmentステータスをERRORに更新
     if (session.developmentRecordId) {
-      console.log(`[Session ${session.sessionId}] Updating development status to ERROR`)
+      console.log(
+        `[Session ${session.sessionId}] Updating development status to ERROR`
+      )
       try {
         await updateDevelopmentStatusToError(
           { id: session.developmentRecordId },
@@ -125,7 +144,10 @@ function setupProcessHandlers(session: AgentSession) {
           session.sessionId
         )
       } catch (dbError) {
-        console.error(`[Session ${session.sessionId}] Failed to update development status:`, dbError)
+        console.error(
+          `[Session ${session.sessionId}] Failed to update development status:`,
+          dbError
+        )
       }
     }
   })
@@ -140,7 +162,9 @@ function setupProcessHandlers(session: AgentSession) {
 
       // developmentステータスをERRORに更新
       if (session.developmentRecordId) {
-        console.log(`[Session ${session.sessionId}] Updating development status to ERROR (timeout)`)
+        console.log(
+          `[Session ${session.sessionId}] Updating development status to ERROR (timeout)`
+        )
         try {
           await updateDevelopmentStatusToError(
             { id: session.developmentRecordId },
@@ -148,11 +172,14 @@ function setupProcessHandlers(session: AgentSession) {
             session.sessionId
           )
         } catch (dbError) {
-          console.error(`[Session ${session.sessionId}] Failed to update development status:`, dbError)
+          console.error(
+            `[Session ${session.sessionId}] Failed to update development status:`,
+            dbError
+          )
         }
       }
     }
-  }, 300000)  // 5分 = 300000ms
+  }, 300000) // 5分 = 300000ms
 }
 
 // ============================================================================
@@ -168,7 +195,7 @@ app.get('/health', (c) => {
     agentPath: '/app/agent/src/index.ts',
     pid: process.pid,
     framework: 'Hono v4.9.6',
-    packageManager: 'pnpm'
+    packageManager: 'pnpm',
   })
 })
 
@@ -179,40 +206,56 @@ app.post('/execute/agent', async (c) => {
 
     // 入力検証
     const required = ['userPrompt', 'aiPrompt', 'userId', 'miniappId']
-    const missing = required.filter(field => !request[field as keyof AgentExecuteRequest])
+    const missing = required.filter(
+      (field) => !request[field as keyof AgentExecuteRequest]
+    )
 
     if (missing.length > 0) {
-      return c.json({
-        success: false,
-        error: `Missing required parameters: ${missing.join(', ')}`
-      }, 400)
+      return c.json(
+        {
+          success: false,
+          error: `Missing required parameters: ${missing.join(', ')}`,
+        },
+        400
+      )
     }
 
-    console.log(`[Agent] Starting execution for user ${request.userId}, miniapp ${request.miniappId}`)
+    console.log(
+      `[Agent] Starting execution for user ${request.userId}, miniapp ${request.miniappId}`
+    )
 
     // localhost:4000 のヘルスチェック
     console.log('[Agent] Checking frontend server health at localhost:4000...')
     try {
       const healthResponse = await fetch('http://localhost:4000', {
         method: 'GET',
-        signal: AbortSignal.timeout(5000) // 5秒タイムアウト
+        signal: AbortSignal.timeout(5000), // 5秒タイムアウト
       })
 
       if (healthResponse.status !== 200) {
-        console.error(`[Agent] Frontend server returned status ${healthResponse.status}`)
-        return c.json({
-          success: false,
-          error: `Frontend server at localhost:4000 is not healthy (status: ${healthResponse.status}). Please ensure the frontend server is running.`
-        }, 503)
+        console.error(
+          `[Agent] Frontend server returned status ${healthResponse.status}`
+        )
+        return c.json(
+          {
+            success: false,
+            error: `Frontend server at localhost:4000 is not healthy (status: ${healthResponse.status}). Please ensure the frontend server is running.`,
+          },
+          503
+        )
       }
 
       console.log('[Agent] Frontend server is healthy (status: 200)')
     } catch (healthError) {
       console.error('[Agent] Frontend server health check failed:', healthError)
-      return c.json({
-        success: false,
-        error: 'Frontend server at localhost:4000 is not accessible. Please ensure the frontend server is running.'
-      }, 503)
+      return c.json(
+        {
+          success: false,
+          error:
+            'Frontend server at localhost:4000 is not accessible. Please ensure the frontend server is running.',
+        },
+        503
+      )
     }
 
     // 非同期実行
@@ -230,10 +273,13 @@ app.post('/execute/agent', async (c) => {
       console.log(`[Agent] Development record created: ${developmentRecord.id}`)
     } catch (dbError) {
       console.error('[Agent] Failed to create development record:', dbError)
-      return c.json({
-        success: false,
-        error: 'Failed to create development record in database'
-      }, 500)
+      return c.json(
+        {
+          success: false,
+          error: 'Failed to create development record in database',
+        },
+        500
+      )
     }
 
     // コマンド構築 - pnpm execを使用
@@ -259,7 +305,7 @@ app.post('/execute/agent', async (c) => {
     console.log(`[Agent] Starting async execution: pnpm ${args.join(' ')}`)
 
     const childProcess = spawn('pnpm', args, {
-      cwd: process.cwd(),  // 現在のディレクトリを使用
+      cwd: process.cwd(), // 現在のディレクトリを使用
       env: {
         ...process.env,
         NODE_ENV: 'production',
@@ -278,7 +324,7 @@ app.post('/execute/agent', async (c) => {
       stderr: '',
       exitCode: null,
       request,
-      developmentRecordId: developmentRecord.id
+      developmentRecordId: developmentRecord.id,
     }
 
     // バックグラウンドで出力収集
@@ -289,16 +335,19 @@ app.post('/execute/agent', async (c) => {
       success: true,
       sessionId,
       status: 'running',
-      message: 'Agent execution started'
+      message: 'Agent execution started',
     })
   } catch (error) {
     console.error('[Agent] Execution failed:', error)
 
-    return c.json({
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
-      timestamp: new Date().toISOString(),
-    }, 500)
+    return c.json(
+      {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: new Date().toISOString(),
+      },
+      500
+    )
   }
 })
 
@@ -308,17 +357,23 @@ app.post('/stop/agent/:sessionId', (c) => {
   const session = sessions.get(sessionId)
 
   if (!session) {
-    return c.json({
-      success: false,
-      error: 'Session not found'
-    }, 404)
+    return c.json(
+      {
+        success: false,
+        error: 'Session not found',
+      },
+      404
+    )
   }
 
   if (session.status !== 'running') {
-    return c.json({
-      success: false,
-      error: `Session is not running (status: ${session.status})`
-    }, 400)
+    return c.json(
+      {
+        success: false,
+        error: `Session is not running (status: ${session.status})`,
+      },
+      400
+    )
   }
 
   // グレースフルシャットダウン
@@ -335,7 +390,7 @@ app.post('/stop/agent/:sessionId', (c) => {
   return c.json({
     success: true,
     sessionId,
-    message: 'Stop signal sent to agent'
+    message: 'Stop signal sent to agent',
   })
 })
 
@@ -345,10 +400,13 @@ app.get('/status/agent/:sessionId', (c) => {
   const session = sessions.get(sessionId)
 
   if (!session) {
-    return c.json({
-      success: false,
-      error: 'Session not found'
-    }, 404)
+    return c.json(
+      {
+        success: false,
+        error: 'Session not found',
+      },
+      404
+    )
   }
 
   return c.json({
@@ -361,8 +419,8 @@ app.get('/status/agent/:sessionId', (c) => {
     stderrSize: session.stderr.length,
     request: {
       userId: session.request.userId,
-      miniappId: session.request.miniappId
-    }
+      miniappId: session.request.miniappId,
+    },
   })
 })
 
@@ -373,10 +431,13 @@ app.get('/logs/agent/:sessionId', async (c) => {
   const stream = c.req.query('stream') === 'true'
 
   if (!session) {
-    return c.json({
-      success: false,
-      error: 'Session not found'
-    }, 404)
+    return c.json(
+      {
+        success: false,
+        error: 'Session not found',
+      },
+      404
+    )
   }
 
   if (stream) {
@@ -389,7 +450,7 @@ app.get('/logs/agent/:sessionId', async (c) => {
         if (newLogs) {
           await stream.writeSSE({
             data: JSON.stringify({ logs: newLogs }),
-            event: 'log'
+            event: 'log',
           })
           lastPosition = session.stdout.length
         }
@@ -398,9 +459,9 @@ app.get('/logs/agent/:sessionId', async (c) => {
           await stream.writeSSE({
             data: JSON.stringify({
               status: session.status,
-              exitCode: session.exitCode
+              exitCode: session.exitCode,
             }),
-            event: 'complete'
+            event: 'complete',
           })
           clearInterval(interval)
           await stream.close()
@@ -420,27 +481,27 @@ app.get('/logs/agent/:sessionId', async (c) => {
       stdout: session.stdout,
       stderr: session.stderr,
       status: session.status,
-      exitCode: session.exitCode
+      exitCode: session.exitCode,
     })
   }
 })
 
 // セッション一覧
 app.get('/sessions/agent', (c) => {
-  const sessionList = Array.from(sessions.values()).map(s => ({
+  const sessionList = Array.from(sessions.values()).map((s) => ({
     sessionId: s.sessionId,
     status: s.status,
     startTime: s.startTime,
     duration: Date.now() - s.startTime,
     userId: s.request.userId,
     miniappId: s.request.miniappId,
-    exitCode: s.exitCode
+    exitCode: s.exitCode,
   }))
 
   return c.json({
     success: true,
     sessions: sessionList,
-    total: sessions.size
+    total: sessions.size,
   })
 })
 
@@ -450,10 +511,13 @@ app.delete('/sessions/agent/:sessionId', (c) => {
   const session = sessions.get(sessionId)
 
   if (!session) {
-    return c.json({
-      success: false,
-      error: 'Session not found'
-    }, 404)
+    return c.json(
+      {
+        success: false,
+        error: 'Session not found',
+      },
+      404
+    )
   }
 
   // 実行中の場合は停止
@@ -470,24 +534,27 @@ app.delete('/sessions/agent/:sessionId', (c) => {
 
   return c.json({
     success: true,
-    message: `Session ${sessionId} deleted`
+    message: `Session ${sessionId} deleted`,
   })
 })
 
 // 404 handler
 app.notFound((c) => {
-  return c.json({
-    error: 'Not found',
-    availableEndpoints: [
-      'GET /health',
-      'POST /execute/agent',
-      'POST /stop/agent/:sessionId',
-      'GET /status/agent/:sessionId',
-      'GET /logs/agent/:sessionId',
-      'GET /sessions/agent',
-      'DELETE /sessions/agent/:sessionId'
-    ]
-  }, 404)
+  return c.json(
+    {
+      error: 'Not found',
+      availableEndpoints: [
+        'GET /health',
+        'POST /execute/agent',
+        'POST /stop/agent/:sessionId',
+        'GET /status/agent/:sessionId',
+        'GET /logs/agent/:sessionId',
+        'GET /sessions/agent',
+        'DELETE /sessions/agent/:sessionId',
+      ],
+    },
+    404
+  )
 })
 
 // ============================================================================
@@ -500,7 +567,10 @@ setInterval(() => {
   let cleanedCount = 0
 
   for (const [id, session] of sessions) {
-    if (session.status !== 'running' && now - session.startTime > 30 * 60 * 1000) {
+    if (
+      session.status !== 'running' &&
+      now - session.startTime > 30 * 60 * 1000
+    ) {
       // タイムアウトハンドルをクリア
       if (session.timeoutHandle) {
         clearTimeout(session.timeoutHandle)
@@ -524,7 +594,7 @@ const PORT = 3030
 const server = serve({
   fetch: app.fetch,
   port: PORT,
-  hostname: '0.0.0.0'
+  hostname: '0.0.0.0',
 })
 
 console.log(`[Agent API] Server running on http://0.0.0.0:${PORT}`)
