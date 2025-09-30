@@ -5,9 +5,9 @@ settings:
   excludeLinksFromLockfile: false
 
 dependencies:
-  '@anthropic-ai/claude-code':
-    specifier: ^1.0.108
-    version: 1.0.108
+  '@anthropic-ai/claude-agent-sdk':
+    specifier: ^0.1.1
+    version: 0.1.1
   '@hono/node-server':
     specifier: ^1.19.1
     version: 1.19.1(hono@4.9.6)
@@ -46,10 +46,9 @@ devDependencies:
 
 packages:
 
-  /@anthropic-ai/claude-code@1.0.108:
-    resolution: {integrity: sha512-9CsfjFBsv8N8I69yqdmv0Jcp9Xpp+kQIONZRIKpnEtNUZn3Q61vYyaFTliobJPk9M/tmuXjYCh3VEpLHu9Jotw==}
+  /@anthropic-ai/claude-agent-sdk@0.1.1:
+    resolution: {integrity: sha512-+12GQktMFc5Uqz6oVjJbj7Q+GD5QDorKEKtInALKD7VleJwLlFbMYIlm4586owIV5veFvb6bAVofKn9CnYWtvw==}
     engines: {node: '>=18.0.0'}
-    hasBin: true
     optionalDependencies:
       '@img/sharp-darwin-arm64': 0.33.5
       '@img/sharp-darwin-x64': 0.33.5

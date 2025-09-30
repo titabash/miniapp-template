@@ -1,7 +1,7 @@
-import { query } from '@anthropic-ai/claude-code'
+import { query } from '@anthropic-ai/claude-agent-sdk'
 import { exec } from 'child_process'
 import { promisify } from 'util'
-import type { Options } from '@anthropic-ai/claude-code'
+import type { Options } from '@anthropic-ai/claude-agent-sdk'
 import type { DevelopmentRecord } from '../../core/types'
 import { BuildError } from '../../core/types'
 import {
@@ -51,9 +51,8 @@ export function createQueryOptions(
   const options: Options = {
     maxTurns: 50,
     model: effectiveModel, // Use litellm model_name (not the actual model name)
-    customSystemPrompt:
-      'You are an exceptionally skilled and experienced React + TypeScript + PocketBase developer with deep expertise in modern web development. You excel at building elegant, minimal apps with clean, production-ready code. You prioritize simplicity, maintainability, and fewer files while delivering robust functionality. Your solutions are always well-architected and follow best practices.',
-    appendSystemPrompt: 'You are using the PocketBase MCP Server.',
+    systemPrompt:
+      'You are an exceptionally skilled and experienced React + TypeScript + PocketBase developer with deep expertise in modern web development. You excel at building elegant, minimal apps with clean, production-ready code. You prioritize simplicity, maintainability, and fewer files while delivering robust functionality. Your solutions are always well-architected and follow best practices.\n\nYou are using the PocketBase MCP Server.',
     cwd: cwd,
     permissionMode: 'acceptEdits',
     // pathToClaudeCodeExecutable: "/toolbox/agent/node_modules/@anthropic-ai/claude-code/cli.js",

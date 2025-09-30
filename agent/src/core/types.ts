@@ -22,7 +22,7 @@ export interface DevelopmentRecord {
   finished_at?: string
 }
 
-// Import types from @anthropic-ai/claude-code
+// Import types from @anthropic-ai/claude-agent-sdk
 export type {
   SDKMessage as Message,
   SDKUserMessage,
@@ -30,4 +30,4 @@ export type {
   SDKResultMessage,
   SDKSystemMessage,
   Options,
-} from '@anthropic-ai/claude-code'
+} from '@anthropic-ai/claude-agent-sdk'
