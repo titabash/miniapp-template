@@ -60,7 +60,7 @@ export function createQueryOptions(
       pocketbase: {
         type: 'stdio',
         command: 'node',
-        args: ['/mcp/pocketbase-mcp/build/index.js'],
+        args: ['/vercel/sandbox/mcp/pocketbase-mcp/build/index.js'],
         env: {
           POCKETBASE_URL: 'http://127.0.0.1:8090',
           POCKETBASE_ADMIN_EMAIL: 'admin@example.com',
