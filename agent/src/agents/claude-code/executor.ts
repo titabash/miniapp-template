@@ -11,6 +11,7 @@ import {
   updateDevelopmentStatusToError,
 } from '../../core/database'
 import { formatMessage } from '../../core/formatter'
+import { createPostToolUseHook, createSessionEndHook } from './hooks'
 
 const execAsync = promisify(exec)
 
@@ -56,6 +57,18 @@ export function createQueryOptions(
     cwd: cwd,
     permissionMode: 'acceptEdits',
     // pathToClaudeCodeExecutable: "/toolbox/agent/node_modules/@anthropic-ai/claude-code/cli.js",
+    hooks: {
+      PostToolUse: [
+        {
+          hooks: [createPostToolUseHook(cwd)],
+        },
+      ],
+      SessionEnd: [
+        {
+          hooks: [createSessionEndHook(cwd)],
+        },
+      ],
+    },
     mcpServers: {
       pocketbase: {
         type: 'stdio',
