@@ -142,6 +142,10 @@ Your role is to review code and ensure compliance with FSD architecture principl
         command: 'npx',
         args: ['-y', '@playwright/mcp@latest', '--isolated'],
       },
+      supabase: {
+        type: 'http',
+        url: 'http://localhost:54321/mcp',
+      }
     },
     allowedTools: [
       'Agent',
