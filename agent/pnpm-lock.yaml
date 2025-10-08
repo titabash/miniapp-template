@@ -11,6 +11,9 @@ dependencies:
   '@hono/node-server':
     specifier: ^1.19.1
     version: 1.19.1(hono@4.9.6)
+  '@openai/codex-sdk':
+    specifier: ^0.45.0
+    version: 0.45.0
   '@supabase/supabase-js':
     specifier: ^2.57.2
     version: 2.57.2
@@ -404,6 +407,11 @@ packages:
     requiresBuild: true
     dev: false
     optional: true
+
+  /@openai/codex-sdk@0.45.0:
+    resolution: {integrity: sha512-ZaxyFRTPiJ5ENSLivYxSLPcbEG40M8zC4/hgn6u3kHSXmVq6slq3AXdTlq75zqHguZb03yEACrR9YkIeRggCzQ==}
+    engines: {node: '>=18'}
+    dev: false
 
   /@supabase/auth-js@2.71.1:
     resolution: {integrity: sha512-mMIQHBRc+SKpZFRB2qtupuzulaUhFYupNyxqDj5Jp/LyPvcWvjaJzZzObv6URtL/O6lPxkanASnotGtNpS3H2Q==}

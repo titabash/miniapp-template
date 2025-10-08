@@ -1,0 +1,43 @@
+# Codex Configuration
+# Equivalent to Claude Code executor MCP servers configuration
+
+# Model configuration
+model = "gpt-4o"
+
+# Sandbox mode: workspace-write allows file modifications within working directory
+sandbox_mode = "workspace-write"
+
+# Approval policy: never auto-executes without prompting
+approval_policy = "never"
+
+# MCP Servers Configuration
+# Same as Claude Code executor setup
+
+[mcp_servers.pocketbase]
+command = "node"
+args = ["/vercel/sandbox/mcp/pocketbase-mcp/build/index.js"]
+
+[mcp_servers.pocketbase.env]
+POCKETBASE_URL = "http://127.0.0.1:8090"
+POCKETBASE_ADMIN_EMAIL = "admin@example.com"
+POCKETBASE_ADMIN_PASSWORD = "mypassword123"
+POCKETBASE_DATA_DIR = "/vercel/sandbox/pb/pb_data"
+
+[mcp_servers.magicuidesign]
+command = "npx"
+args = ["-y", "@magicuidesign/mcp@latest"]
+
+[mcp_servers.shadcn]
+command = "npx"
+args = ["-y", "shadcn@canary", "registry:mcp"]
+
+[mcp_servers.shadcn.env]
+REGISTRY_URL = "https://animate-ui.com/r/registry.json"
+
+[mcp_servers.context7]
+command = "npx"
+args = ["-y", "@upstash/context7-mcp"]
+
+[mcp_servers.playwright]
+command = "npx"
+args = ["-y", "@playwright/mcp@latest", "--isolated"]
