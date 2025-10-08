@@ -44,7 +44,7 @@ export function createCodexInstance(model?: string): Codex {
 export function createThreadOptions(model?: string): ThreadOptions {
   console.log(`🔍 createThreadOptions - Received model: "${model}"`)
 
-  const effectiveModel = model || 'gpt-4o'
+  const effectiveModel = model || 'gpt-5-codex'
   console.log(
     `🔍 createThreadOptions - Using effective model: "${effectiveModel}"`
   )

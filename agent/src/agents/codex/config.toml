@@ -2,7 +2,7 @@
 # Equivalent to Claude Code executor MCP servers configuration
 
 # Model configuration
-model = "gpt-4o"
+model = "gpt-5-codex"
 
 # Sandbox mode: workspace-write allows file modifications within working directory
 sandbox_mode = "workspace-write"
@@ -10,8 +10,15 @@ sandbox_mode = "workspace-write"
 # Approval policy: never auto-executes without prompting
 approval_policy = "never"
 
+model_reasoning_effort = "high"
+hide_agent_reasoning = true
+network_access = true
+
 # MCP Servers Configuration
 # Same as Claude Code executor setup
+
+[tools]
+web_search = true
 
 [mcp_servers.pocketbase]
 command = "node"
