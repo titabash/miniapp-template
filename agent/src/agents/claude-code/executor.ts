@@ -12,6 +12,7 @@ import {
 } from '../../core/database'
 import { formatMessage } from '../../core/formatter'
 import { createPostToolUseHook, createSessionEndHook } from './hooks'
+import { logger, config, formatError, truncate } from '../../core/logger'
 
 const execAsync = promisify(exec)
 
@@ -20,34 +21,11 @@ export function createQueryOptions(
   sessionId?: string,
   model?: string
 ): Options {
-  // デバッグ: モデル指定の確認
-  console.log(`🔍 createQueryOptions - Received model: "${model}"`)
-
-  // ANTHROPIC_BASE_URLに基づくモデル選択
-  let effectiveModel: string
-  const anthropicBaseUrl = process.env.ANTHROPIC_BASE_URL
-
-  // if (anthropicBaseUrl === "http://127.0.0.1:4000") {
-  //   // LiteLLMプロキシ使用時は渡されたmodelを優先、なければデフォルト
-  //   effectiveModel = model || "claude-sonnet-4";
-  //   console.log(`🔍 createQueryOptions - Using LiteLLM proxy mode`);
-  // } else {
-  //   // 通常のAnthropic API使用時は常にsonnet
-  //   effectiveModel = "sonnet";
-  //   if (model && model !== "sonnet") {
-  //     console.log(`⚠️ createQueryOptions - Model "${model}" was requested but overridden to sonnet (Direct API mode)`);
-  //   }
-  // }
-
-  effectiveModel = model || 'claude-sonnet-4'
-
-  console.log(
-    `🔍 createQueryOptions - Using effective model: "${effectiveModel}"`
-  )
-
-  // 環境変数からcwdを取得（デフォルト: "/app/miniapp"）
+  const effectiveModel = model || 'claude-sonnet-4'
   const cwd = process.env.CLAUDE_CODE_CWD || '/app/miniapp'
-  console.log(`🔍 createQueryOptions - Using cwd: "${cwd}"`)
+
+  logger.debug('⚙️', `Model: ${effectiveModel}`)
+  logger.debug('⚙️', `CWD: ${cwd}`)
 
   const options: Options = {
     maxTurns: 50,
@@ -231,7 +209,7 @@ Your role is to review code and ensure compliance with FSD architecture principl
   // Add session-related options if sessionId exists
   if (sessionId) {
     ;(options as any).resume = sessionId
-    console.log(`🔗 Using session ID for continuity: ${sessionId}`)
+    logger.debug('🔗', `Resuming session: ${sessionId}`)
   }
 
   return options
@@ -240,26 +218,25 @@ Your role is to review code and ensure compliance with FSD architecture principl
 // Function to execute npm run build
 export async function executeBuild(): Promise<void> {
   try {
-    console.log('🔨 Starting npm run build in /app/miniapp...')
+    logger.info('🔨', 'Starting build...')
     const { stdout, stderr } = await execAsync('npm run build', {
       cwd: '/app/miniapp',
       timeout: 300000, // 5 minutes timeout
     })
 
     if (stdout) {
-      console.log('📦 Build output:')
-      console.log(stdout)
+      logger.debug('📦', 'Build output:')
+      logger.debug('📦', stdout)
     }
 
     if (stderr) {
-      console.log('⚠️ Build warnings/errors:')
-      console.log(stderr)
+      logger.debug('⚠️', 'Build warnings:')
+      logger.debug('⚠️', stderr)
     }
 
-    console.log('✅ Build completed successfully')
+    logger.info('✅', 'Build completed successfully')
   } catch (buildError: any) {
-    console.error('❌ Build failed:')
-    console.error(buildError)
+    formatError('Build failed', buildError)
 
     // Prepare build error details for retry
     const buildOutput = {
@@ -281,46 +258,33 @@ export async function executeClaudeCode(
   let sessionId: string | undefined
 
   try {
-    console.log('🔍 Debug - Query options:')
-    console.log(`  Model: ${queryOptions.model}`)
-    console.log(`  MaxTurns: ${queryOptions.maxTurns}`)
-    console.log(`  CWD: ${queryOptions.cwd}`)
-    console.log(`  PermissionMode: ${queryOptions.permissionMode}`)
-    console.log('🔍 Debug - Full options object:')
-    // console.log(JSON.stringify(queryOptions, null, 2));
-    console.log('🔍 Debug - Starting query execution...')
-    console.log(
-      `🔍 Debug - Prompt: "${prompt.substring(0, 100)}${
-        prompt.length > 100 ? '...' : ''
-      }"`
-    )
+    logger.debug('⚙️', `Query options: Model=${queryOptions.model}, MaxTurns=${queryOptions.maxTurns}, PermissionMode=${queryOptions.permissionMode}`)
+
+    if (config.showPrompt) {
+      logger.debug('📝', `Prompt: ${prompt}`)
+    } else {
+      logger.debug('📝', `Prompt: ${truncate(prompt, 150)}`)
+    }
+
+    logger.info('🚀', 'Starting Claude Code execution...')
 
     const queryIterator = query({
       prompt: prompt,
       options: queryOptions,
     })
 
-    console.log('🔍 Debug - Query iterator created, starting message loop...')
-
     for await (const message of queryIterator) {
-      console.log(
-        `🔍 Debug - Received message type: ${message.type}, subtype: ${
-          (message as any).subtype || 'N/A'
-        }`
-      )
+      logger.debug('📨', `Message: ${message.type}${(message as any).subtype ? ` (${(message as any).subtype})` : ''}`)
       sessionId = message.session_id
       formatMessage(message)
 
       // Save message to database
       if (developmentRecord) {
         try {
-          // Debug: Check developmentRecord and user_id
+          // Validation check
           if (!developmentRecord.user_id) {
-            console.error('❌ CRITICAL: developmentRecord.user_id is missing!')
-            console.error(
-              '  developmentRecord:',
-              JSON.stringify(developmentRecord, null, 2)
-            )
+            logger.error('❌', 'CRITICAL: developmentRecord.user_id is missing!')
+            logger.error('❌', JSON.stringify(developmentRecord, null, 2))
           }
 
           await saveMessageToDatabase(
@@ -329,26 +293,27 @@ export async function executeClaudeCode(
             queryOptions.model,
             developmentRecord.user_id
           )
-          console.log('✅ Debug - Message saved to database successfully')
+          logger.debug('✅', 'Message saved to database')
         } catch (dbError: any) {
-          console.error(
-            '❌ Critical - Failed to save message to database:',
-            dbError
-          )
-
           let errorMessage = 'Database error during message processing'
           let errorType = 'DATABASE_ERROR'
 
           if (dbError.name === 'InsufficientCreditError') {
             errorMessage = `Credit insufficient. Current: $${dbError.currentBalance}, Required: $${dbError.requiredCost}`
             errorType = 'INSUFFICIENT_CREDIT'
-            console.error(`💳 ${errorMessage}`)
           } else if (dbError.message?.includes('userId is required')) {
             errorMessage = 'Critical error: User ID is missing'
             errorType = 'MISSING_USER_ID'
           } else {
             errorMessage = `Database error: ${dbError.message || 'Unknown error'}`
           }
+
+          // Format error with emphasis
+          formatError('Database save failed', dbError, {
+            message_type: message.type,
+            session_id: sessionId,
+            error_type: errorType,
+          })
 
           // Record error to miniapp_ai_processing table
           try {
@@ -365,10 +330,7 @@ export async function executeClaudeCode(
               }
             )
           } catch (processingError) {
-            console.error(
-              'Failed to save to miniapp_ai_processing:',
-              processingError
-            )
+            logger.error('❌', 'Failed to save to miniapp_ai_processing:', processingError)
           }
 
           // Update development status to ERROR
@@ -378,12 +340,9 @@ export async function executeClaudeCode(
               errorMessage,
               sessionId
             )
-            console.log('📝 Development status updated to ERROR')
+            logger.info('📝', 'Development status updated to ERROR')
           } catch (updateError) {
-            console.error(
-              '❌ Failed to update development status to ERROR:',
-              updateError
-            )
+            logger.error('❌', 'Failed to update development status to ERROR:', updateError)
           }
 
           // Always stop processing on any database error
@@ -392,21 +351,10 @@ export async function executeClaudeCode(
       }
     }
 
-    console.log('🔍 Debug - Query execution completed')
+    logger.debug('✅', 'Query execution completed')
     return sessionId
   } catch (queryError) {
-    console.log('🔍 Debug - Query error details:')
-    console.log(
-      `  Error name: ${
-        queryError instanceof Error ? queryError.name : 'Unknown'
-      }`
-    )
-    console.log(
-      `  Error message: ${
-        queryError instanceof Error ? queryError.message : String(queryError)
-      }`
-    )
-
+    formatError('Query execution failed', queryError)
     throw queryError
   }
 }

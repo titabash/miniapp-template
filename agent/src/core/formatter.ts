@@ -4,7 +4,8 @@ import type {
   SDKAssistantMessage,
   SDKResultMessage,
   SDKSystemMessage,
-} from './types.ts'
+} from './types'
+import { logger, LogLevel, config, truncate } from './logger'
 
 // Type guard functions
 function isUserMessage(message: Message): message is SDKUserMessage {
@@ -27,104 +28,118 @@ export function formatMessage(message: Message) {
   const timestamp = new Date().toISOString()
 
   if (isSystemMessage(message)) {
-    console.log(`\n🔧 [${timestamp}] SYSTEM (${message.subtype})`)
-    console.log(`   Session ID: ${message.session_id}`)
-    console.log(`   API Key Source: ${message.apiKeySource}`)
-    console.log(`   Model: ${message.model}`)
-    console.log(`   Permission Mode: ${message.permissionMode}`)
-    console.log(`   Working Directory: ${message.cwd}`)
-    console.log(`   Available Tools: ${message.tools?.join(', ')}`)
-    if (message.mcp_servers?.length && message.mcp_servers.length > 0) {
-      console.log(`   MCP Servers:`)
-      message.mcp_servers.forEach((server) => {
-        console.log(`     - ${server.name}: ${server.status}`)
-      })
+    // NORMAL: Show simplified session start info
+    logger.info(
+      '🔧',
+      `SESSION STARTED - ${message.model} (${message.permissionMode})`
+    )
+    logger.debug('🔧', `Session ID: ${message.session_id}`)
+    logger.debug('🔧', `CWD: ${message.cwd}`)
+    logger.debug('🔧', `API Key: ${message.apiKeySource}`)
+    if (config.level >= LogLevel.DEBUG && message.mcp_servers?.length) {
+      logger.debug('🔧', `MCP Servers: ${message.mcp_servers.map((s) => `${s.name}(${s.status})`).join(', ')}`)
     }
   } else if (isUserMessage(message)) {
-    console.log(`\n👤 [${timestamp}] USER`)
-    console.log(`   Session ID: ${message.session_id}`)
-    if (message.parent_tool_use_id) {
-      console.log(`   Parent Tool Use ID: ${message.parent_tool_use_id}`)
+    // DEBUG: Show user messages (usually prompts)
+    if (config.showPrompt) {
+      logger.debug('👤', `USER MESSAGE`)
+      logger.debug('👤', `Content: ${JSON.stringify(message.message?.content, null, 2)}`)
+    } else {
+      const contentPreview =
+        typeof message.message?.content === 'string'
+          ? truncate(message.message.content)
+          : '[Complex content]'
+      logger.debug('👤', `USER: ${contentPreview}`)
     }
-    console.log(
-      `   Content: ${JSON.stringify(message.message?.content, null, 2)}`
-    )
   } else if (isAssistantMessage(message)) {
-    console.log(`\n🤖 [${timestamp}] ASSISTANT`)
-    console.log(`   Session ID: ${message.session_id}`)
-    if (message.parent_tool_use_id) {
-      console.log(`   Parent Tool Use ID: ${message.parent_tool_use_id}`)
-    }
-
+    // NORMAL: Show assistant messages (text and important tool uses)
     if (message.message?.content) {
-      message.message.content.forEach((content: any, index: number) => {
+      message.message.content.forEach((content: any) => {
         if (content.type === 'text') {
-          console.log(`   Text [${index}]: ${content.text}`)
+          // Always show assistant text at NORMAL level
+          logger.info('🤖', `${truncate(content.text, 200)}`)
         } else if (content.type === 'tool_use') {
-          console.log(`   Tool Use [${index}]: ${content.name}`)
-          console.log(`     ID: ${content.id}`)
-          console.log(`     Input: ${JSON.stringify(content.input, null, 6)}`)
+          // Show tool use at NORMAL level (important actions)
+          logger.info('🔧', `Tool: ${content.name}`)
+
+          // Show tool input details only in DEBUG or if SHOW_TOOL_INPUT is true
+          if (config.showToolInput || config.level >= LogLevel.DEBUG) {
+            logger.debug('🔧', `  Input: ${JSON.stringify(content.input, null, 2)}`)
+          } else {
+            // Show simplified input for common tools
+            const inputSummary = getToolInputSummary(content.name, content.input)
+            if (inputSummary) {
+              logger.info('🔧', `  ${inputSummary}`)
+            }
+          }
         }
       })
     }
 
-    if (message.message?.usage) {
-      console.log(`   Usage:`)
-      console.log(
-        `     Input Tokens: ${message.message.usage.input_tokens || 0}`
+    // Show usage at DEBUG level
+    if (message.message?.usage && config.level >= LogLevel.DEBUG) {
+      const usage = message.message.usage
+      const cached = usage.cache_read_input_tokens || 0
+      logger.debug(
+        '📊',
+        `Tokens: ${usage.input_tokens || 0} in (${cached} cached) / ${usage.output_tokens || 0} out`
       )
-      console.log(
-        `     Output Tokens: ${message.message.usage.output_tokens || 0}`
-      )
-      if (message.message.usage.cache_creation_input_tokens) {
-        console.log(
-          `     Cache Creation Tokens: ${message.message.usage.cache_creation_input_tokens}`
-        )
-      }
-      if (message.message.usage.cache_read_input_tokens) {
-        console.log(
-          `     Cache Read Tokens: ${message.message.usage.cache_read_input_tokens}`
-        )
-      }
-      const totalTokens =
-        (message.message.usage.input_tokens || 0) +
-        (message.message.usage.output_tokens || 0)
-      console.log(`     Total Tokens: ${totalTokens}`)
     }
   } else if (isResultMessage(message)) {
-    console.log(`\n✅ [${timestamp}] RESULT (${message.subtype})`)
-    console.log(`   Session ID: ${message.session_id}`)
-    console.log(
-      `   Duration: ${message.duration_ms}ms (API: ${message.duration_api_ms}ms)`
-    )
-    console.log(`   Turns: ${message.num_turns}`)
-    console.log(`   Cost: $${message.total_cost_usd?.toFixed(4)}`)
-    console.log(`   Is Error: ${message.is_error}`)
+    // ERROR: Show error results with emphasis
+    // NORMAL: Show success results with summary
+    const isError = message.subtype !== 'success'
 
-    if (message.usage) {
-      console.log(`   Total Usage:`)
-      console.log(`     Input Tokens: ${message.usage.input_tokens || 0}`)
-      console.log(`     Output Tokens: ${message.usage.output_tokens || 0}`)
-      if (message.usage.cache_creation_input_tokens) {
-        console.log(
-          `     Cache Creation Tokens: ${message.usage.cache_creation_input_tokens}`
-        )
-      }
-      if (message.usage.cache_read_input_tokens) {
-        console.log(
-          `     Cache Read Tokens: ${message.usage.cache_read_input_tokens}`
-        )
-      }
-      const totalTokens =
-        (message.usage.input_tokens || 0) + (message.usage.output_tokens || 0)
-      console.log(`     Total Tokens: ${totalTokens}`)
+    if (isError) {
+      logger.error('❌', `SESSION ENDED: ${message.subtype}`)
+      logger.error('❌', `Turns: ${message.num_turns} | Duration: ${(message.duration_ms / 1000).toFixed(1)}s`)
+    } else {
+      logger.info('✅', `SESSION COMPLETED`)
+      logger.info(
+        '📊',
+        `Duration: ${(message.duration_ms / 1000).toFixed(1)}s | Turns: ${message.num_turns} | Cost: $${message.total_cost_usd?.toFixed(4)}`
+      )
+    }
+
+    if (message.usage && config.level >= LogLevel.NORMAL) {
+      const usage = message.usage
+      const cached = usage.cache_read_input_tokens || 0
+      const total = (usage.input_tokens || 0) + (usage.output_tokens || 0)
+      logger.info(
+        '📊',
+        `Tokens: ${usage.input_tokens || 0} in (${cached} cached) / ${usage.output_tokens || 0} out = ${total} total`
+      )
     }
 
     if (message.subtype === 'success' && 'result' in message) {
-      console.log(`   Result: ${message.result}`)
+      logger.debug('📝', `Result: ${message.result}`)
     }
   } else {
-    console.log(`\n❓ [${timestamp}] UNKNOWN MESSAGE TYPE`)
-    console.log(JSON.stringify(message, null, 2))
+    // Unknown message type - always log at ERROR level
+    logger.error('❓', `UNKNOWN MESSAGE TYPE`)
+    logger.error('❓', JSON.stringify(message, null, 2))
+  }
+}
+
+/**
+ * Get simplified summary of tool input for common tools
+ */
+function getToolInputSummary(toolName: string, input: any): string | null {
+  switch (toolName) {
+    case 'Write':
+      return `Path: ${input.file_path}`
+    case 'Edit':
+    case 'MultiEdit':
+      return `Path: ${input.file_path}`
+    case 'Read':
+      return `Path: ${input.file_path}`
+    case 'Bash':
+      return `Command: ${truncate(input.command, 80)}`
+    case 'Glob':
+      return `Pattern: ${input.pattern}`
+    case 'Grep':
+      return `Pattern: ${input.pattern}`
+    default:
+      return null
   }
 }
