@@ -11,7 +11,7 @@ import {
   updateDevelopmentStatusToError,
 } from '../../core/database'
 import { formatMessage } from '../../core/formatter'
-import { createPostToolUseHook, createSessionEndHook } from './hooks'
+import { createPostToolUseHook, createSessionEndHook, createGitSaveSessionEndHook } from './hooks'
 import { logger, config, formatError, truncate } from '../../core/logger'
 
 const execAsync = promisify(exec)
@@ -35,7 +35,9 @@ export function createQueryOptions(
 
 You are using the PocketBase MCP Server.
 
-IMPORTANT: When you create, update, or delete PocketBase collections or fields, ALWAYS invoke the 'pocketbase-schema-sync' subagent afterwards to export the updated schema to ${cwd}/collections/pb_collection.json.`,
+IMPORTANT: When you create, update, or delete PocketBase collections or fields, ALWAYS invoke the 'pocketbase-schema-sync' subagent afterwards to export the updated schema to ${cwd}/collections/pb_collection.json.
+
+IMPORTANT: 重要な作業の区切り（機能実装完了、バグ修正完了、リファクタリング完了など）では、'git-saver' サブエージェントを呼び出して適切なコミットメッセージでgit commit・pushを実行してください。セッション終了時には自動的にgit保存されますが、作業中の適切なタイミングでの保存も重要です。`,
     cwd: cwd,
     permissionMode: 'acceptEdits',
     // pathToClaudeCodeExecutable: "/toolbox/agent/node_modules/@anthropic-ai/claude-code/cli.js",
@@ -107,6 +109,35 @@ Execute immediately when invoked.`,
         tools: ['mcp__pocketbase', 'Write', 'Read', 'Bash'],
         model: 'inherit',
       },
+      'git-saver': {
+        description:
+          'Saves work to git with appropriate commit message at logical breakpoints. Invoke after completing features, fixes, or refactoring.',
+        prompt: `You are a Git commit management specialist.
+
+Your role: Review current changes and commit with appropriate message, then push to remote.
+
+## Tasks
+1. Check changes with \`git status\` and \`git diff\`
+2. Read modified files if needed to understand the changes
+3. Create a concise, descriptive commit message in Japanese
+   - Format: \`<type>: <description>\`
+   - Types: feat, fix, refactor, docs, style, test, chore
+4. Execute: \`git add -A && git commit -m "<message>" && git push\`
+5. Report success with commit hash
+
+## Example
+\`\`\`bash
+git status
+git diff
+git add -A
+git commit -m "feat: ユーザー認証機能を追加"
+git push
+\`\`\`
+
+Execute immediately and concisely.`,
+        tools: ['Bash', 'Read', 'Grep'],
+        model: 'inherit',
+      },
     },
     hooks: {
       PostToolUse: [
@@ -116,7 +147,7 @@ Execute immediately when invoked.`,
       ],
       SessionEnd: [
         {
-          hooks: [createSessionEndHook(cwd)],
+          hooks: [createSessionEndHook(cwd), createGitSaveSessionEndHook(cwd)],
         },
       ],
     },

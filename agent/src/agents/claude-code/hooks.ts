@@ -100,3 +100,70 @@ export function createSessionEndHook(cwd: string) {
     return { continue: true }
   }
 }
+
+/**
+ * SessionEnd Git Save hook factory: セッション終了時に git add/commit/push を実行
+ */
+export function createGitSaveSessionEndHook(cwd: string) {
+  return async function gitSaveSessionEndHook(
+    input: HookInput,
+    _toolUseID: string | undefined,
+    _options: { signal: AbortSignal }
+  ) {
+    // SessionEndの場合のみ処理
+    if (input.hook_event_name !== 'SessionEnd') {
+      return { continue: true }
+    }
+
+    try {
+      console.log('💾 SessionEnd: Saving to Git...')
+
+      // Git add all changes
+      await execAsync('git add -A', {
+        cwd: cwd,
+        timeout: 30000,
+      })
+      console.log('✅ git add -A completed')
+
+      // Check if there are changes to commit
+      try {
+        await execAsync('git diff --cached --quiet', {
+          cwd: cwd,
+          timeout: 10000,
+        })
+        console.log('ℹ️ No changes to commit')
+        return { continue: true }
+      } catch {
+        // Exit code 1 means there are changes - proceed with commit
+      }
+
+      // Commit with timestamp
+      const timestamp = new Date().toISOString()
+      const commitMessage = `Auto-save: セッション終了 ${timestamp}`
+      await execAsync(`git commit -m "${commitMessage}"`, {
+        cwd: cwd,
+        timeout: 30000,
+      })
+      console.log(`✅ git commit completed: ${commitMessage}`)
+
+      // Push to remote
+      await execAsync('git push', {
+        cwd: cwd,
+        timeout: 60000, // 1分タイムアウト
+      })
+      console.log('✅ git push completed')
+
+    } catch (error: any) {
+      console.error('❌ Git save failed:', error.message)
+      if (error.stdout) {
+        console.error('Git stdout:', error.stdout)
+      }
+      if (error.stderr) {
+        console.error('Git stderr:', error.stderr)
+      }
+      // エラーが発生してもフローは継続
+    }
+
+    return { continue: true }
+  }
+}
