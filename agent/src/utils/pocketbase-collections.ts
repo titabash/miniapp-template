@@ -14,7 +14,7 @@ const POCKETBASE_ADMIN_PASSWORD =
   process.env.POCKETBASE_ADMIN_PASSWORD || 'mypassword123'
 
 // 出力先パス
-const OUTPUT_DIR = '/app/miniapp/collections'
+const OUTPUT_DIR = path.join(process.env.CLAUDE_CODE_CWD || '/app/miniapp', 'collections')
 const OUTPUT_FILE = 'pb_collection.json'
 
 /**

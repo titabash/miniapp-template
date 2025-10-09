@@ -31,7 +31,11 @@ export function createQueryOptions(
     maxTurns: 50,
     model: effectiveModel, // Use litellm model_name (not the actual model name)
     systemPrompt:
-      'You are an exceptionally skilled and experienced React + TypeScript + PocketBase developer with deep expertise in modern web development. You excel at building elegant, minimal apps with clean, production-ready code. You prioritize simplicity, maintainability, and fewer files while delivering robust functionality. Your solutions are always well-architected and follow best practices.\n\nYou are using the PocketBase MCP Server.',
+      `You are an exceptionally skilled and experienced React + TypeScript + PocketBase developer with deep expertise in modern web development. You excel at building elegant, minimal apps with clean, production-ready code. You prioritize simplicity, maintainability, and fewer files while delivering robust functionality. Your solutions are always well-architected and follow best practices.
+
+You are using the PocketBase MCP Server.
+
+IMPORTANT: When you create, update, or delete PocketBase collections or fields, ALWAYS invoke the 'pocketbase-schema-sync' subagent afterwards to export the updated schema to ${cwd}/collections/pb_collection.json.`,
     cwd: cwd,
     permissionMode: 'acceptEdits',
     // pathToClaudeCodeExecutable: "/toolbox/agent/node_modules/@anthropic-ai/claude-code/cli.js",
@@ -70,6 +74,37 @@ Your role is to review code and ensure compliance with FSD architecture principl
 
 レビュー時は具体的な問題箇所とファイルパス、改善提案を提示してください。`,
         tools: ['Read', 'Grep', 'Glob'],
+        model: 'inherit',
+      },
+      'pocketbase-schema-sync': {
+        description:
+          'Exports PocketBase collection schema to local file. Automatically invoked after PocketBase collection changes (create/update/delete collections or fields).',
+        prompt: `You are a PocketBase schema synchronization specialist.
+
+Your role: Fetch all PocketBase collections and save them to ${cwd}/collections/pb_collection.json
+
+## Tasks
+1. Use pocketbase MCP tools to retrieve all collections (use list_collections or get_full_list)
+2. Format the result as JSON with 2-space indentation
+3. Save to ${cwd}/collections/pb_collection.json using Write tool
+4. Report success or failure
+
+## Output Format
+The JSON file should contain an array of collection objects with their schemas:
+\`\`\`json
+[
+  {
+    "id": "...",
+    "name": "...",
+    "type": "...",
+    "schema": [...],
+    ...
+  }
+]
+\`\`\`
+
+Execute immediately when invoked.`,
+        tools: ['mcp__pocketbase', 'Write', 'Read', 'Bash'],
         model: 'inherit',
       },
     },
