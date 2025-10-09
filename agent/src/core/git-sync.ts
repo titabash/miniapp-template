@@ -334,7 +334,7 @@ export async function executeGitCommitWithConflictResolution(
   console.log(`🚀 Starting git commit and push for miniapp ${miniAppId}...`)
 
   try {
-    const repoPath = '/app'
+    const repoPath = path.dirname(process.env.CLAUDE_CODE_CWD || '/app/miniapp')
 
     // ディレクトリの存在確認
     if (!existsSync(repoPath)) {

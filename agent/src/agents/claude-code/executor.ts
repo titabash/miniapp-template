@@ -284,9 +284,10 @@ Execute immediately and concisely.`,
 // Function to execute npm run build
 export async function executeBuild(): Promise<void> {
   try {
-    logger.info('🔨', 'Starting build...')
+    const cwd = process.env.CLAUDE_CODE_CWD || '/app/miniapp'
+    logger.info('🔨', `Starting build in ${cwd}...`)
     const { stdout, stderr } = await execAsync('npm run build', {
-      cwd: '/app/miniapp',
+      cwd: cwd,
       timeout: 300000, // 5 minutes timeout
     })
 

@@ -108,7 +108,7 @@ export class GeminiQuery implements QueryInterface {
       type: 'system',
       subtype: 'init',
       apiKeySource: 'user',
-      cwd: process.cwd(),
+      cwd: process.env.CLAUDE_CODE_CWD || process.cwd(),
       session_id: this.sessionId,
       tools: ['read-file', 'write-file', 'edit', 'shell', 'glob', 'grep'],
       mcp_servers: [],
