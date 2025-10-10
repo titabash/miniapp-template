@@ -2,7 +2,7 @@
 
 import React from 'react'
 import { useMiniAppAuth, LoginForm } from '@/features/auth'
-import { Alert } from '@/shared/ui/alert'
+import { Alert, AlertTitle, AlertDescription } from '@/shared/ui/alert'
 import { Card, CardHeader, CardTitle, CardContent } from '@/shared/ui/card'
 import { Button } from '@/shared/ui/button'
 
@@ -35,23 +35,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
           <CardHeader className="text-center">
             <CardTitle className="text-red-600">認証エラー</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
             <Alert variant="destructive">
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <p className="font-medium">認証に失敗しました</p>
-                  <p className="text-sm">{auth.authMessage}</p>
-                </div>
-                <div className="flex flex-col space-y-2">
-                  <Button onClick={handleRetry} variant="outline" size="sm">
-                    再試行
-                  </Button>
-                  <Button onClick={handleReload} variant="outline" size="sm">
-                    ページを再読み込み
-                  </Button>
-                </div>
-              </div>
+              <AlertTitle>認証に失敗しました</AlertTitle>
+              <AlertDescription>{auth.authMessage}</AlertDescription>
             </Alert>
+            <div className="flex flex-col space-y-2">
+              <Button onClick={handleRetry} variant="outline">
+                再試行
+              </Button>
+              <Button onClick={handleReload} variant="outline">
+                ページを再読み込み
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>
