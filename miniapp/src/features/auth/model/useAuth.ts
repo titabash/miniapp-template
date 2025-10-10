@@ -122,20 +122,6 @@ export function useMiniAppAuth(): UseAuthReturn {
   useEffect(() => {
     console.log('[useMiniAppAuth] authStore監視を開始')
 
-    // Cookie から認証情報を復元（Next.js ベストプラクティス）
-    // クライアント側でのみ実行
-    if (typeof window !== 'undefined') {
-      try {
-        pb.authStore.loadFromCookie(document.cookie)
-        console.log('[useMiniAppAuth] Cookie から認証情報を復元:', {
-          isValid: pb.authStore.isValid,
-          hasToken: !!pb.authStore.token,
-        })
-      } catch (error) {
-        console.warn('[useMiniAppAuth] Cookie からの認証情報復元に失敗:', error)
-      }
-    }
-
     const updateAuthState = (
       isValid: boolean,
       record: PocketBaseRecord | null
@@ -180,22 +166,6 @@ export function useMiniAppAuth(): UseAuthReturn {
     // authStore変更を監視（単一の真実の源）
     const unsubscribe = pb.authStore.onChange((_, record) => {
       updateAuthState(pb.authStore.isValid, record)
-
-      // Cookie に認証情報を保存（Next.js ベストプラクティス）
-      // クライアント側でのみ実行
-      if (typeof window !== 'undefined') {
-        try {
-          const cookieOptions = {
-            httpOnly: false, // クライアント側でアクセス可能
-            secure: location.protocol === 'https:',
-            sameSite: 'strict' as const,
-            maxAge: 7 * 24 * 60 * 60, // 7日間
-          }
-          document.cookie = pb.authStore.exportToCookie(cookieOptions)
-        } catch (error) {
-          console.warn('[useMiniAppAuth] Cookie への認証情報保存に失敗:', error)
-        }
-      }
     })
 
     return () => {
