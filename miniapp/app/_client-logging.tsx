@@ -47,6 +47,34 @@ const ENABLE_WINDOW_UNHANDLED_REJECTION = true
 //========================
 
 /**
+ * エラー情報を親ウィンドウにpostMessageで送信する共通関数
+ * - iframe環境でのみ動作（親ウィンドウ存在時）
+ * - エラー送信失敗時も元のログ機能には影響しない
+ */
+function sendErrorToParent(
+  source: 'console' | 'window.onerror' | 'window.unhandledrejection',
+  data: unknown
+): void {
+  try {
+    // iframe環境かつ親ウィンドウが存在する場合のみ送信
+    if (window.parent && window.parent !== window) {
+      window.parent.postMessage(
+        {
+          type: 'MINIAPP_ERROR',
+          timestamp: nowISO(),
+          level: 'error',
+          source,
+          data,
+        },
+        '*' // 開発時は '*'、本番では親ドメインを指定推奨
+      )
+    }
+  } catch (err) {
+    // postMessage失敗時は握りつぶす（ログ機能への影響を避ける）
+  }
+}
+
+/**
  * console.* をプレフィックス付きで包むパッチを適用し、アンインストーラを返す。
  * - 多重パッチ防止のため、呼び出し側でガードを必ず掛けること。
  */
@@ -68,6 +96,8 @@ function installConsolePatch(prefix: string): () => void {
       switch (level) {
         case 'error':
           original.error(head, ...args)
+          // postMessageにもプレフィックスを含めて送信（weavo側のフィルタリング対応）
+          sendErrorToParent('console', [head, ...args])
           break
         case 'warn':
           original.warn(head, ...args)
@@ -109,26 +139,47 @@ function installGlobalErrorHandlers(prefix: string): () => void {
   // イベントハンドラ：実行時エラー
   const onError = (event: ErrorEvent) => {
     // event.error が Error オブジェクトのこともある（対応ブラウザ）
-    console.error(
-      `${nowISO()} ${prefix} [client-events] [ERROR] window.onerror`,
-      {
-        message: event?.message,
-        filename: event?.filename,
-        lineno: event?.lineno,
-        colno: event?.colno,
-        error: event?.error,
-      }
-    )
+    const errorData = {
+      message: event?.message,
+      filename: event?.filename,
+      lineno: event?.lineno,
+      colno: event?.colno,
+      error: event?.error,
+    }
+    const errorHeader = `${nowISO()} ${prefix} [client-events] [ERROR] window.onerror`
+    console.error(errorHeader, errorData)
+    // weavo側のフィルタリング対応：プレフィックス付きメッセージを含める
+    sendErrorToParent('window.onerror', {
+      ...errorData,
+      // messageの先頭にプレフィックスを追加
+      message: `${prefix} [ERROR] ${errorData.message || ''}`
+    })
   }
 
   // イベントハンドラ：未処理の Promise 拒否
   const onRejection = (event: PromiseRejectionEvent) => {
-    console.error(
-      `${nowISO()} ${prefix} [client-events] [ERROR] window.unhandledrejection`,
-      {
-        reason: event?.reason, // 例：Error / string / any
+    const reason = event?.reason
+    // reasonを文字列化
+    let reasonMessage = ''
+    if (reason instanceof Error) {
+      reasonMessage = `${reason.message}\n${reason.stack || ''}`
+    } else if (typeof reason === 'object') {
+      try {
+        reasonMessage = JSON.stringify(reason, null, 2)
+      } catch {
+        reasonMessage = String(reason)
       }
-    )
+    } else {
+      reasonMessage = String(reason)
+    }
+
+    const rejectionData = {
+      reason: `${prefix} [ERROR] ${reasonMessage}`, // プレフィックスを含める
+    }
+
+    const errorHeader = `${nowISO()} ${prefix} [client-events] [ERROR] window.unhandledrejection`
+    console.error(errorHeader, rejectionData)
+    sendErrorToParent('window.unhandledrejection', rejectionData)
   }
 
   if (ENABLE_WINDOW_ONERROR) {
