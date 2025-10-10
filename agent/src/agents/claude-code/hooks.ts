@@ -147,7 +147,7 @@ export function createGitSaveSessionEndHook(cwd: string) {
       console.log(`✅ git commit completed: ${commitMessage}`)
 
       // Push to remote
-      await execAsync('git push', {
+      await execAsync('git push origin HEAD', {
         cwd: cwd,
         timeout: 60000, // 1分タイムアウト
       })

@@ -351,7 +351,8 @@ export async function executeGitCommitWithConflictResolution(
     await fetchAndSaveCollections()
 
     // すべての変更をステージング（pc_collection.jsonも含まれる）
-    await execGitCommand('add .', repoPath)
+    // -A オプションで削除されたファイルも追跡
+    await execGitCommand('add -A', repoPath)
 
     // コミットの作成（変更がある場合のみ）
     let commitHash = ''
@@ -376,11 +377,18 @@ export async function executeGitCommitWithConflictResolution(
 
     // リモートへのプッシュ
     try {
-      await execGitCommand('push origin main', repoPath)
+      await execGitCommand('push origin HEAD', repoPath)
       console.log(`📤 Pushed to remote`)
-    } catch (error) {
-      console.error(`⚠️ Failed to push to remote: ${error}`)
-      console.log(`ℹ️ Changes are committed locally`)
+    } catch (error: any) {
+      console.error(`❌ Failed to push to remote: ${error}`)
+      console.error(`ℹ️ Changes are committed locally but not pushed`)
+      return {
+        commitHash,
+        message: commitMessage,
+        hadConflicts: false,
+        success: false,
+        error: `Git push failed: ${error.message || String(error)}`,
+      }
     }
 
     console.log(

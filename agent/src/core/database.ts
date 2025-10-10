@@ -564,8 +564,19 @@ export async function updateDevelopmentStatusToCompleted(
     console.log(
       `🚀 Creating git commit for miniapp ${developmentRecord.miniapp_id} v${version}...`
     )
-    const { commitHash, hadConflicts } =
+    const { commitHash, hadConflicts, success, error } =
       await executeGitCommitWithConflictResolution(developmentRecord.miniapp_id)
+
+    // Git操作が失敗した場合はERRORステータスに更新
+    if (!success) {
+      console.error(`❌ Git operations failed: ${error}`)
+      await updateDevelopmentStatusToError(
+        developmentRecord,
+        error || 'Git commit or push failed',
+        sessionId
+      )
+      throw new Error(error || 'Git operations failed')
+    }
 
     if (hadConflicts) {
       console.log(`⚠️ Conflicts were detected and resolved automatically`)
