@@ -50,8 +50,6 @@ export async function createPocketBaseInstance(): Promise<PocketBase> {
  * PocketBase APIエラーハンドリング
  */
 export function handlePocketBaseError(error: unknown): string {
-  'use server'
-
   if (error instanceof Error) {
     // PocketBase APIエラーの場合
     if ('status' in error && 'message' in error) {
