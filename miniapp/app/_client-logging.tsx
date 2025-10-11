@@ -69,7 +69,7 @@ function sendErrorToParent(
         '*' // 開発時は '*'、本番では親ドメインを指定推奨
       )
     }
-  } catch (err) {
+  } catch {
     // postMessage失敗時は握りつぶす（ログ機能への影響を避ける）
   }
 }

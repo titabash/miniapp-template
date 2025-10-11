@@ -166,8 +166,9 @@ export default function About() {
 
 現在設定済みのルート：
 
-- `/` → `/home` にリダイレクト (`app/page.tsx`)
-- `/home` → `HomePage` コンポーネントを表示 (`app/home/page.tsx`)
+- `/` → `HomePage` コンポーネントを直接表示 (`app/page.tsx`)
+  - 未認証時: `AuthProvider` により自動的に `LoginForm` を表示
+  - 認証済み: `HomePage` を表示
 
 ## 参考リンク
 

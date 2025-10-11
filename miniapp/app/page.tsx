@@ -1,6 +1,7 @@
-import { redirect } from 'next/navigation'
+import { HomePage } from '@/pages'
 
 export default function RootPage() {
-  // "/" にアクセスした場合は "/home" にリダイレクト
-  redirect('/home')
+  // "/" がホーム画面として直接 HomePage を表示
+  // AuthProvider により、未認証時は自動的にログインフォームが表示されます
+  return <HomePage />
 }

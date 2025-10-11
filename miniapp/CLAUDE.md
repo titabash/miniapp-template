@@ -25,9 +25,7 @@ Feature Sliced Design（FSD）アーキテクチャを採用し、拡張性と�
 miniapp-next/
 ├── app/              # Next.js App Router（ルート階層）
 │   ├── layout.tsx    # ルートレイアウト + 認証統合
-│   ├── page.tsx      # ルート（"/"）→ "/home"リダイレクト
-│   ├── home/
-│   │   └── page.tsx  # メインページ（"/home"）
+│   ├── page.tsx      # ルート（"/"）- HomePage を直接表示
 │   ├── globals.css   # グローバルCSS + Tailwind
 │   └── providers/    # 認証プロバイダー
 │       ├── auth-provider.tsx
@@ -185,7 +183,7 @@ import { pb } from '@/shared/lib/pocketbase' // クライアントサイド専�
 
 - **App Router**: ファイルベースルーティング採用
 - **FSD統合**: app/ から src/pages/ のコンポーネントをインポート
-- **自動リダイレクト**: "/" → "/home" で一貫性を保持
+- **ルート表示**: "/" で直接 HomePage を表示（AuthProvider による認証制御）
 
 ### 5. UI/UX
 
