@@ -1,88 +1,40 @@
-import { promises as fs } from 'fs'
-import path from 'path'
-import PocketBase from 'pocketbase'
+import { exec } from 'child_process'
+import { promisify } from 'util'
+
+const execAsync = promisify(exec)
 
 /**
- * PocketBase APIクライアント - コレクション情報取得用
+ * PocketBase migrate collections - マイグレーション実行
  */
 
-// PocketBase設定
-const POCKETBASE_URL = process.env.POCKETBASE_URL || 'http://localhost:8090'
-const POCKETBASE_ADMIN_EMAIL =
-  process.env.POCKETBASE_ADMIN_EMAIL || 'admin@example.com'
-const POCKETBASE_ADMIN_PASSWORD =
-  process.env.POCKETBASE_ADMIN_PASSWORD || 'mypassword123'
-
-// 出力先パス
-const OUTPUT_DIR = path.join(process.env.CLAUDE_CODE_CWD || '/app/miniapp', 'collections')
-const OUTPUT_FILE = 'pb_collection.json'
-
 /**
- * コレクション情報をJSONファイルに保存
- */
-async function saveCollectionsToFile(collections: any[]): Promise<void> {
-  try {
-    // ディレクトリが存在しない場合は作成
-    await fs.mkdir(OUTPUT_DIR, { recursive: true })
-
-    const filePath = path.join(OUTPUT_DIR, OUTPUT_FILE)
-
-    // JSONとして整形して保存（既存ファイルは上書き）
-    const jsonContent = JSON.stringify(collections, null, 2)
-    await fs.writeFile(filePath, jsonContent, 'utf-8')
-
-    console.log(`✅ Saved ${collections.length} collections to ${filePath}`)
-  } catch (error) {
-    console.error('❌ Failed to save collections to file:', error)
-    throw error
-  }
-}
-
-/**
- * PocketBaseからコレクション情報を取得してファイルに保存
+ * PocketBaseのマイグレーションコマンドを実行してコレクション情報を同期
  */
 export async function fetchAndSaveCollections(): Promise<void> {
-  console.log('🚀 Starting PocketBase collection export...')
+  console.log('🚀 Starting PocketBase migration...')
 
   try {
-    // PocketBaseクライアントを初期化
-    const pb = new PocketBase(POCKETBASE_URL)
+    const migrationsDir = `${process.env.CLAUDE_CODE_CWD}/pb_migrations`
+    const command = `/vercel/sandbox/pb/bin/pocketbase migrate collections --migrationsDir="${migrationsDir}"`
 
-    // 1. SuperUser認証
-    console.log(`🔐 Authenticating with PocketBase at ${POCKETBASE_URL}...`)
-    const authResult = await pb
-      .collection('_superusers')
-      .authWithPassword(POCKETBASE_ADMIN_EMAIL, POCKETBASE_ADMIN_PASSWORD)
-    console.log(`✅ Authenticated as superuser: ${authResult.record.email}`)
+    console.log(`📦 Executing: ${command}`)
+    const { stdout, stderr } = await execAsync(command, { timeout: 30000 })
 
-    // 2. すべてのコレクションを取得（getFullList使用）
-    console.log('📦 Fetching all collections from PocketBase...')
-    const collections = await pb.collections.getFullList({ sort: '-created' })
-    console.log(`✅ Fetched ${collections.length} collections`)
+    if (stdout) {
+      console.log(`📝 PocketBase output: ${stdout.trim()}`)
+    }
 
-    // 3. ファイルに保存
-    await saveCollectionsToFile(collections)
+    if (stderr) {
+      console.error(`⚠️ PocketBase stderr: ${stderr.trim()}`)
+    }
 
-    console.log('✅ PocketBase collection export completed successfully')
+    console.log('✅ PocketBase migration completed successfully')
   } catch (error) {
     // エラーが発生してもGit同期処理は継続するため、エラーログのみ出力
     console.error(
-      '⚠️ PocketBase collection export failed, but continuing with Git sync:',
+      '⚠️ PocketBase migration failed, but continuing with Git sync:',
       error
     )
     console.error('⚠️ Collections will not be included in this commit')
-  }
-}
-
-/**
- * コレクション情報ファイルが存在するか確認
- */
-export async function collectionFileExists(): Promise<boolean> {
-  try {
-    const filePath = path.join(OUTPUT_DIR, OUTPUT_FILE)
-    await fs.access(filePath)
-    return true
-  } catch {
-    return false
   }
 }
