@@ -45,43 +45,6 @@ Your role is to review code and ensure compliance with FSD architecture principl
 }
 
 /**
- * PocketBase スキーマ同期用サブエージェント
- */
-export function createPocketbaseSchemaAgent(cwd: string): SubAgentDefinition {
-  return {
-    description:
-      'Exports PocketBase collection schema to local file. Automatically invoked after PocketBase collection changes (create/update/delete collections or fields).',
-    prompt: `You are a PocketBase schema synchronization specialist.
-
-Your role: Fetch all PocketBase collections and save them to ${cwd}/collections/pb_collection.json
-
-## Tasks
-1. Use pocketbase MCP tools to retrieve all collections (use list_collections or get_full_list)
-2. Format the result as JSON with 2-space indentation
-3. Save to ${cwd}/collections/pb_collection.json using Write tool
-4. Report success or failure
-
-## Output Format
-The JSON file should contain an array of collection objects with their schemas:
-\`\`\`json
-[
-  {
-    "id": "...",
-    "name": "...",
-    "type": "...",
-    "schema": [...],
-    ...
-  }
-]
-\`\`\`
-
-Execute immediately when invoked.`,
-    tools: ['mcp__pocketbase', 'Write', 'Read', 'Bash'],
-    model: 'inherit',
-  }
-}
-
-/**
  * Git 保存用サブエージェント
  */
 export function createGitSaverAgent(): SubAgentDefinition {
@@ -122,7 +85,6 @@ Execute immediately and concisely.`,
 export function createAllSubAgents(cwd: string): NonNullable<Options['agents']> {
   return {
     'fsd-checker': createFsdCheckerAgent(),
-    'pocketbase-schema-sync': createPocketbaseSchemaAgent(cwd),
     'git-saver': createGitSaverAgent(),
   }
 }
