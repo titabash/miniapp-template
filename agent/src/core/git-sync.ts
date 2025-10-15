@@ -53,11 +53,7 @@ async function execGitCommand(
     return { stdout, stderr }
   } catch (error: any) {
     console.error(`❌ Git command failed: ${command}`, error)
-    // エラーオブジェクトにstdoutとstderrを追加して、呼び出し元で詳細を確認可能にする
-    const gitError = new Error(`Git command failed: ${error.message}`)
-    ;(gitError as any).stdout = error.stdout || ''
-    ;(gitError as any).stderr = error.stderr || ''
-    throw gitError
+    throw new Error(`Git command failed: ${error.message}`)
   }
 }
 
@@ -358,21 +354,30 @@ export async function executeGitCommitWithConflictResolution(
     // -A オプションで削除されたファイルも追跡
     await execGitCommand('add -A', repoPath)
 
+    // ステージされた変更があるかチェック
+    let hasChanges = false
+    try {
+      await execAsync('git diff --cached --quiet', {
+        cwd: repoPath,
+        timeout: 10000,
+      })
+      console.log('ℹ️ No changes to commit, will push current HEAD')
+      hasChanges = false
+    } catch {
+      // Exit code 1 means there are changes
+      hasChanges = true
+    }
+
     // コミットの作成（変更がある場合のみ）
     let commitHash = ''
     const timestamp = new Date().toISOString()
     const commitMessage = `Update miniapp ${miniAppId} - ${timestamp}`
 
-    try {
+    if (hasChanges) {
       await execGitCommand(`commit -m "${commitMessage}"`, repoPath)
       console.log(`✅ Created local commit`)
-    } catch (error: any) {
-      // stdoutで「nothing to commit」をチェック（error.messageには含まれないため）
-      if (error.stdout?.includes('nothing to commit')) {
-        console.log(`ℹ️ No changes to commit, using current HEAD`)
-      } else {
-        throw error
-      }
+    } else {
+      console.log(`ℹ️ Skipping commit, using current HEAD`)
     }
 
     // 最終的なコミットハッシュを取得
