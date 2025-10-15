@@ -36,8 +36,6 @@ export function createQueryOptions(
 
 You are using the PocketBase MCP Server.
 
-IMPORTANT: When you create, update, or delete PocketBase collections or fields, ALWAYS invoke the 'pocketbase-schema-sync' subagent afterwards to export the updated schema to ${cwd}/collections/pb_collection.json.
-
 IMPORTANT: 重要な作業の区切り（機能実装完了、バグ修正完了、リファクタリング完了など）では、'git-saver' サブエージェントを呼び出して適切なコミットメッセージでgit commit・pushを実行してください。セッション終了時には自動的にgit保存されますが、作業中の適切なタイミングでの保存も重要です。`,
     cwd: cwd,
     permissionMode: 'acceptEdits',
