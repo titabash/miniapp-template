@@ -15,7 +15,7 @@ export async function fetchAndSaveCollections(): Promise<void> {
 
   try {
     const migrationsDir = `${process.env.CLAUDE_CODE_CWD}/pb_migrations`
-    const command = `/vercel/sandbox/pb/bin/pocketbase migrate collections --migrationsDir="${migrationsDir}"`
+    const command = `echo "y" | /vercel/sandbox/pb/bin/pocketbase migrate collections --migrationsDir="${migrationsDir}"`
 
     console.log(`📦 Executing: ${command}`)
     const { stdout, stderr } = await execAsync(command, { timeout: 30000 })

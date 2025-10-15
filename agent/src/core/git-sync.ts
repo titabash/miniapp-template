@@ -53,7 +53,11 @@ async function execGitCommand(
     return { stdout, stderr }
   } catch (error: any) {
     console.error(`❌ Git command failed: ${command}`, error)
-    throw new Error(`Git command failed: ${error.message}`)
+    // エラーオブジェクトにstdoutとstderrを追加して、呼び出し元で詳細を確認可能にする
+    const gitError = new Error(`Git command failed: ${error.message}`)
+    ;(gitError as any).stdout = error.stdout || ''
+    ;(gitError as any).stderr = error.stderr || ''
+    throw gitError
   }
 }
 
@@ -361,11 +365,11 @@ export async function executeGitCommitWithConflictResolution(
 
     try {
       await execGitCommand(`commit -m "${commitMessage}"`, repoPath)
-
       console.log(`✅ Created local commit`)
     } catch (error: any) {
-      if (error.message.includes('nothing to commit')) {
-        console.log(`ℹ️ No changes to commit`)
+      // stdoutで「nothing to commit」をチェック（error.messageには含まれないため）
+      if (error.stdout?.includes('nothing to commit')) {
+        console.log(`ℹ️ No changes to commit, using current HEAD`)
       } else {
         throw error
       }
