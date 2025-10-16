@@ -171,6 +171,7 @@ IMPORTANT: 重要な作業の区切り（機能実装完了、バグ修正完了
       'Bash(pnpm run dev)',
       'Bash(pnpm run preview)',
       'Bash(pnpm run build:watch)',
+
     ],
   }
 
