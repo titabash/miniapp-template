@@ -167,3 +167,68 @@ export function createGitSaveSessionEndHook(cwd: string) {
     return { continue: true }
   }
 }
+
+/**
+ * PostToolUse hook factory: PocketBase MCP スキーマ操作後にマイグレーション実行
+ */
+export function createPocketbaseMigrationHook(cwd: string) {
+  return async function pocketbaseMigrationHook(
+    input: HookInput,
+    _toolUseID: string | undefined,
+    _options: { signal: AbortSignal }
+  ) {
+    // PostToolUseの場合のみ処理
+    if (input.hook_event_name !== 'PostToolUse') {
+      return { continue: true }
+    }
+
+    const toolName = input.tool_name
+
+    // PocketBase MCP のスキーマ操作ツールの場合のみ処理
+    const schemaTools = [
+      'mcp__pocketbase__create_collection',
+      'mcp__pocketbase__update_collection',
+      'mcp__pocketbase__delete_collection',
+    ]
+
+    if (!toolName || !schemaTools.includes(toolName)) {
+      return { continue: true }
+    }
+
+    try {
+      console.log(`🗄️ PocketBase schema changed by ${toolName}`)
+      console.log('🔄 Running PocketBase migrations...')
+
+      const migrationsDir = `${cwd}/pb_migrations`
+      const command = `echo "y" | /vercel/sandbox/pb/bin/pocketbase migrate collections --migrationsDir="${migrationsDir}"`
+
+      const { stdout, stderr } = await execAsync(command, {
+        cwd: cwd,
+        timeout: 60000, // 1分タイムアウト
+      })
+
+      if (stdout) {
+        console.log('📦 Migration output:')
+        console.log(stdout)
+      }
+
+      if (stderr) {
+        console.log('⚠️ Migration warnings:')
+        console.log(stderr)
+      }
+
+      console.log('✅ PocketBase migration completed')
+    } catch (error: any) {
+      console.error('❌ PocketBase migration failed:', error.message)
+      if (error.stdout) {
+        console.error('Migration stdout:', error.stdout)
+      }
+      if (error.stderr) {
+        console.error('Migration stderr:', error.stderr)
+      }
+      // エラーが発生してもフローは継続
+    }
+
+    return { continue: true }
+  }
+}

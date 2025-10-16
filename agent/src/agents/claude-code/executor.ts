@@ -11,7 +11,7 @@ import {
   updateDevelopmentStatusToError,
 } from '../../core/database'
 import { formatMessage } from '../../core/formatter'
-import { createPostToolUseHook, createSessionEndHook, createGitSaveSessionEndHook } from './hooks'
+import { createPostToolUseHook, createSessionEndHook, createGitSaveSessionEndHook, createPocketbaseMigrationHook } from './hooks'
 import { createAllSubAgents } from './subagents'
 import { logger, config, formatError, truncate } from '../../core/logger'
 
@@ -44,7 +44,7 @@ IMPORTANT: 重要な作業の区切り（機能実装完了、バグ修正完了
     hooks: {
       PostToolUse: [
         {
-          hooks: [createPostToolUseHook(cwd)],
+          hooks: [createPostToolUseHook(cwd), createPocketbaseMigrationHook(cwd)],
         },
       ],
       SessionEnd: [
