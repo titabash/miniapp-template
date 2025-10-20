@@ -12,7 +12,9 @@
     "preview": "next start -p 8080",
     "tsc": "tsc --noEmit",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "clean": "rm -rf .next",
+    "dev:clean": "rm -rf .next && pnpm next dev -p 5173"
   },
   "dependencies": {
     "@ai-sdk/openai": "^2.0.18",

@@ -48,6 +48,17 @@
       "estimated": false,
       "source": "https://www.anthropic.com/pricing"
     },
+    "claude-haiku-4": {
+      "provider": "anthropic",
+      "upstream_id": "anthropic/claude-haiku-4-5-20251001",
+      "context_window_tokens": 200000,
+      "input_per_1k_usd": 0.001,
+      "output_per_1k_usd": 0.005,
+      "cache_creation_per_1k_usd": 0.00125,
+      "cache_read_per_1k_usd": 0.0001,
+      "estimated": false,
+      "source": "https://www.anthropic.com/pricing"
+    },
     "gemini-2.5-pro": {
       "provider": "google",
       "upstream_id": "gemini/gemini-2.5-pro",
