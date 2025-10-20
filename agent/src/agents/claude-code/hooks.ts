@@ -40,7 +40,7 @@ export function createPostToolUseHook(cwd: string) {
 
     try {
       console.log(`🎨 Running prettier on: ${filePath}`)
-      await execAsync(`prettier --write "${filePath}"`, {
+      await execAsync(`pnpm exec prettier --write "${filePath}"`, {
         cwd: cwd,
         timeout: 30000, // 30秒タイムアウト
       })

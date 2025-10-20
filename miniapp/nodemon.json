@@ -1,0 +1,33 @@
+{
+  "exec": "next dev -p 5173",
+  "watch": [
+    "next.config.js",
+    "next.config.mjs",
+    "next.config.ts",
+    "tailwind.config.js",
+    "tailwind.config.ts",
+    "postcss.config.js",
+    "postcss.config.cjs",
+    "tsconfig.json",
+    ".env",
+    ".env.local",
+    ".env.*",
+    "app",
+    "src",
+    "pages"
+  ],
+  "ext": "ts,tsx,js,jsx,mjs,cjs,cts,mts,env,json,css",
+  "ignore": [
+    "node_modules",
+    ".next",
+    "public",
+    "**/*.map"
+  ],
+  "delay": "1500",
+  "signal": "SIGTERM",
+  "restartable": "rs",
+  "legacyWatch": false,
+  "events": {
+    "restart": "npx kill-port 5173 || true"
+  }
+}
