@@ -155,6 +155,15 @@ IMPORTANT: 重要な作業の区切り（機能実装完了、バグ修正完了
       'MultiEdit(**/features/auth/**)',
       'Write(**/features/auth/**)',
 
+      // 開発環境関連（実行禁止）
+      'Edit(**/nodemon.json)',
+      'MultiEdit(**/nodemon.json)',
+      'Write(**/nodemon.json)',
+
+      // 開発環境関連（実行禁止）
+      'Bash(pnpm run dev:watch)',
+      'Bash(nodemon)',
+
       // 危険なコマンド（削除系）
       'Bash(rm -rf)', // -rf 全域
       'Bash(rm -r )', // -r 単独（末尾スペースを意図的に含める例）
